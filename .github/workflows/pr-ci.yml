@@ -1,46 +1,267 @@
-name: PR Continuous Integration
+name: PR Pipeline
 
+# Runs on every pull request targeting master:
+#   1. Static code analysis (ESLint, Prettier, TypeScript, dependency review, secret scan, Dockerfile lint)
+#   2. All unit tests (Jest) across workspaces that have tests
+#   3. Docker image build for every service/frontend
+#   4. A new pre-release version is computed and (for same-repo PRs) published to GHCR
+#   5. A single aggregate status check that branch protection can require
 on:
   pull_request:
     branches:
       - master
 
+# Cancel superseded runs when new commits are pushed to the same PR.
+concurrency:
+  group: pr-pipeline-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
 jobs:
+  ###############################################################################
+  # Setup: compute a pre-release version for this PR build
+  ###############################################################################
   setup:
     runs-on: ubuntu-latest
     outputs:
-      image_tag: ${{ steps.set.outputs.image_tag }}
+      semver: ${{ steps.version.outputs.semver }}
+      docker_tag: ${{ steps.version.outputs.docker_tag }}
+      pr_tag: ${{ steps.version.outputs.pr_tag }}
+      same_repo: ${{ steps.version.outputs.same_repo }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Queue workflow if already running
-        uses: ahmadnassri/action-workflow-queue@v1
+      - name: Compute PR version
+        id: version
+        run: |
+          BASE_VERSION=$(node -p "require('./package.json').version")
+          SHORT_SHA=$(echo "${{ github.event.pull_request.head.sha }}" | cut -c1-7)
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          SEMVER="${BASE_VERSION}.pr.${PR_NUMBER}+${SHORT_SHA}"
+          DOCKER_TAG="${BASE_VERSION}.pr.${PR_NUMBER}-build.${SHORT_SHA}"
+          PR_TAG="pr-${PR_NUMBER}"
+          echo "semver=${SEMVER}" >> "$GITHUB_OUTPUT"
+          echo "docker_tag=${DOCKER_TAG}" >> "$GITHUB_OUTPUT"
+          echo "pr_tag=${PR_TAG}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}" ]; then
+            echo "same_repo=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "same_repo=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "### PR pre-release version: ${SEMVER}" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Set image_tag value
-        id: set
-        run: echo "image_tag=$(echo pr-$(echo $GITHUB_REF | awk 'BEGIN { FS = "/" } ; { print $3 }'))" >> $GITHUB_OUTPUT
-
+  ###############################################################################
+  # Static code analysis (best practices)
+  ###############################################################################
   lint:
+    name: 'Static analysis / ESLint'
     runs-on: ubuntu-latest
     needs: setup
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: yarn
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
 
-      - name: Lint
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Lint (ESLint, all workspaces)
         run: yarn lint
 
+  format-check:
+    name: 'Static analysis / Prettier'
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Check formatting
+        run: yarn prettier --check .
+
+  typecheck:
+    name: 'Static analysis / TypeScript'
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      # Each service's own "build" script already rebuilds @microrealestate/types
+      # and @microrealestate/common first (tsc --build), so a plain build here
+      # doubles as a full type-check of the workspace and its dependencies.
+      - name: Type-check @microrealestate/types
+        run: yarn workspace @microrealestate/types run build
+
+      - name: Type-check @microrealestate/common
+        run: yarn workspace @microrealestate/common run build
+
+      - name: Type-check @microrealestate/gateway
+        run: yarn workspace @microrealestate/gateway run build
+
+      - name: Type-check @microrealestate/tenantapi
+        run: yarn workspace @microrealestate/tenantapi run build
+
+      - name: Type-check @microrealestate/resetservice
+        run: yarn workspace @microrealestate/resetservice run build
+
+  dependency-review:
+    name: 'Static analysis / Dependency review'
+    runs-on: ubuntu-latest
+    needs: setup
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Scan dependency changes for known vulnerabilities/licenses
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  secret-scan:
+    name: 'Static analysis / Secret scan'
+    runs-on: ubuntu-latest
+    needs: setup
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for committed secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+          extra_args: --only-verified
+
+  dockerfile-lint:
+    name: 'Static analysis / Dockerfile lint (${{ matrix.appname }})'
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - appname: gateway
+            dockerfile: services/gateway/Dockerfile
+          - appname: api
+            dockerfile: services/api/Dockerfile
+          - appname: tenantapi
+            dockerfile: services/tenantapi/Dockerfile
+          - appname: authenticator
+            dockerfile: services/authenticator/Dockerfile
+          - appname: pdfgenerator
+            dockerfile: services/pdfgenerator/Dockerfile
+          - appname: emailer
+            dockerfile: services/emailer/Dockerfile
+          - appname: resetservice
+            dockerfile: services/resetservice/Dockerfile
+          - appname: landlord-frontend
+            dockerfile: webapps/landlord/Dockerfile
+          - appname: tenant-frontend
+            dockerfile: webapps/tenant/Dockerfile
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint ${{ matrix.dockerfile }}
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          failure-threshold: warning
+
+  ###############################################################################
+  # Unit tests
+  ###############################################################################
+  unit-tests:
+    name: 'Unit tests (${{ matrix.workspace }})'
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workspace: '@microrealestate/api'
+            artifact_name: api
+          - workspace: '@microrealestate/common'
+            artifact_name: common
+          - workspace: '@microrealestate/cli'
+            artifact_name: cli
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run unit tests
+        run: yarn workspace ${{ matrix.workspace }} run test
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: ${{ always() }}
+        with:
+          name: coverage-${{ matrix.artifact_name }}
+          path: '**/coverage'
+          if-no-files-found: ignore
+
+  ###############################################################################
+  # Build a versioned image for every service/frontend
+  ###############################################################################
   build-images:
+    name: 'Build image (${{ matrix.appname }})'
     permissions:
       contents: read
       packages: write
     runs-on: ubuntu-latest
-    needs: [setup, lint]
+    needs:
+      - setup
+      - lint
+      - format-check
+      - typecheck
+      - dependency-review
+      - secret-scan
+      - dockerfile-lint
+      - unit-tests
     strategy:
+      fail-fast: false
       matrix:
         include:
           - appname: gateway
@@ -70,7 +291,6 @@ jobs:
           - appname: tenant-frontend
             image: ghcr.io/${{ github.repository }}/tenant-frontend
             dockerfile: webapps/tenant/Dockerfile
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,17 +298,86 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Forked PRs cannot push to GHCR (no write access to secrets), so we
+      # only build there to verify the Dockerfile still produces an image.
+      - name: Login to GitHub Container Registry
+        if: needs.setup.outputs.same_repo == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ matrix.image }}
 
-      - name: Build and push to GitHub Container Registry
+      - name: Build (and push for same-repo PRs)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          tags: '${{ matrix.image }}:${{ needs.setup.outputs.image_tag }}'
+          push: ${{ needs.setup.outputs.same_repo == 'true' }}
+          tags: |
+            ${{ matrix.image }}:${{ needs.setup.outputs.docker_tag }}
+            ${{ matrix.image }}:${{ needs.setup.outputs.pr_tag }}
           labels: ${{ steps.meta.outputs.labels }}
-          push: false
+          cache-from: type=gha,scope=${{ matrix.appname }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.appname }}
+
+  ###############################################################################
+  # Publish the new version on the PR so reviewers know what to pull
+  ###############################################################################
+  publish-version-comment:
+    name: 'Publish version comment'
+    runs-on: ubuntu-latest
+    needs:
+      - setup
+      - build-images
+    if: needs.setup.outputs.same_repo == 'true'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment PR with pre-release version and image tags
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-version
+          message: |
+            ### 🚀 PR build published
+
+            **Version:** `${{ needs.setup.outputs.semver }}`
+
+            Images pushed to GHCR, tagged `${{ needs.setup.outputs.docker_tag }}` and `${{ needs.setup.outputs.pr_tag }}`, e.g.:
+
+            ```
+            ghcr.io/${{ github.repository }}/gateway:${{ needs.setup.outputs.pr_tag }}
+            ghcr.io/${{ github.repository }}/api:${{ needs.setup.outputs.pr_tag }}
+            ```
+
+  ###############################################################################
+  # Single required status check for branch protection
+  ###############################################################################
+  pr-pipeline-status:
+    name: 'PR pipeline status'
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - setup
+      - lint
+      - format-check
+      - typecheck
+      - dependency-review
+      - secret-scan
+      - dockerfile-lint
+      - unit-tests
+      - build-images
+    steps:
+      - name: Fail if any required job failed, was cancelled or was skipped
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || "${{ contains(needs.*.result, 'cancelled') }}" == "true" || "${{ contains(needs.*.result, 'skipped') }}" == "true" ]]; then
+            echo "One or more required jobs did not succeed."
+            exit 1
+          fi
+          echo "All required jobs succeeded."
