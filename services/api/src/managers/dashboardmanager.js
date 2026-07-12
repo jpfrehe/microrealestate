@@ -1,4 +1,5 @@
 import { Collections } from '@microrealestate/common';
+import { computeCashflow } from './cashflow.js';
 import moment from 'moment';
 
 export async function all(req, res) {
@@ -25,10 +26,11 @@ export async function all(req, res) {
   }, []);
   const tenantCount = activeTenants.length;
 
-  // count properties
-  const propertyCount = await Collections.Property.find({
+  // fetch properties (also used below for the cashflow breakdown)
+  const allProperties = await Collections.Property.find({
     realmId: req.headers.organizationid
-  }).count();
+  }).lean();
+  const propertyCount = allProperties.length;
 
   // compute occupancyRate
   let occupancyRate;
@@ -161,9 +163,25 @@ export async function all(req, res) {
       moment(r1.month, 'MMYYYY').isBefore(moment(r2.month, 'MMYYYY')) ? -1 : 1
     );
 
+  // cashflow of the current month, per property and for the whole portfolio
+  // (UC3 - falls back to Soll/Ist rent data alone when no expense was
+  // recorded yet and no bank account is connected, see useCases.md UC3)
+  const allExpenses = await Collections.Expense.find({
+    realmId: req.headers.organizationid,
+    date: { $gte: beginOfTheMonth.toDate(), $lte: endOfTheMonth.toDate() }
+  }).lean();
+  const cashflow = computeCashflow({
+    properties: allProperties,
+    tenants: allTenants,
+    expenses: allExpenses,
+    startTerm: Number(beginOfTheMonth.format('YYYYMMDDHH')),
+    endTerm: Number(endOfTheMonth.format('YYYYMMDDHH'))
+  });
+
   res.json({
     overview,
     topUnpaid,
-    revenues
+    revenues,
+    cashflow
   });
 }
