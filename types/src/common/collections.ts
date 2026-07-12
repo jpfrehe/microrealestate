@@ -1,4 +1,13 @@
-import { LeaseTimeRange, Locale, PaymentMethod, UserRole } from './index.js';
+import {
+  BankAccountStatus,
+  ExpenseCategory,
+  ExpenseSource,
+  LeaseTimeRange,
+  Locale,
+  PaymentMethod,
+  TransactionMatchStatus,
+  UserRole
+} from './index.js';
 
 export type MongooseDocument<T> = {
   __v: number;
@@ -266,5 +275,68 @@ export namespace CollectionTypes {
     guarantyPayback: number;
 
     stepperMode: boolean;
+  };
+
+  // Open banking / XS2A (see system.md roadmap Phase 0-4)
+  export type BankAccount = {
+    _id: string;
+    realmId: string;
+    propertyIds: string[]; // empty array = applies to the whole realm
+    aggregatorProvider: string; // e.g. 'finapi', 'enablebanking' - adapter-specific identifier
+    aggregatorAccountId: string;
+    iban: string;
+    bankName: string;
+    accountHolder: string;
+    encryptedAccessToken: string;
+    consentGivenDate: Date;
+    consentExpiryDate: Date;
+    status: BankAccountStatus;
+    lastSyncDate?: Date;
+    createdDate: Date;
+    updatedDate: Date;
+  };
+
+  export type TransactionMatchCandidate = {
+    tenantId: string;
+    tenantName: string;
+    term: number;
+    openAmount: number;
+    confidence: number; // 0-1, higher is a stronger match
+    reason: string;
+  };
+
+  export type Transaction = {
+    _id: string;
+    realmId: string;
+    bankAccountId: string;
+    aggregatorTransactionId: string;
+    amount: number;
+    currency: string;
+    valueDate: Date;
+    bookingDate: Date;
+    counterpartyName?: string;
+    counterpartyIban?: string;
+    remittanceInformation: string;
+    matchStatus: TransactionMatchStatus;
+    matchCandidates: CollectionTypes.TransactionMatchCandidate[];
+    matchedTenantId?: string;
+    matchedTerm?: number;
+    createdDate: Date;
+    updatedDate: Date;
+  };
+
+  export type Expense = {
+    _id: string;
+    realmId: string;
+    propertyId: string;
+    category: ExpenseCategory;
+    amount: number;
+    date: Date;
+    description: string;
+    documentId?: string;
+    source: ExpenseSource;
+    transactionId?: string;
+    createdDate: Date;
+    updatedDate: Date;
   };
 }
