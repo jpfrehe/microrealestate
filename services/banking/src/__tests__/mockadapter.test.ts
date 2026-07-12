@@ -12,14 +12,27 @@ describe('MockAggregatorAdapter', () => {
   });
 
   describe('initiateConnection', () => {
-    it('returns a redirect url and connection id for a supported bank', async () => {
+    it('returns a redirect url embedding a connection id for a supported bank', async () => {
       const result = await adapter.initiateConnection({
         bankId: 'DE_MOCKBANK',
         redirectUrl: 'https://landlord.example.com/callback'
       });
 
-      expect(result.connectionId).toContain('DE_MOCKBANK');
+      expect(result.connectionId).toBeTruthy();
       expect(result.redirectUrl).toContain(result.connectionId);
+    });
+
+    it('returns a distinct connection id per call, even for the same bank', async () => {
+      const first = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/callback-a'
+      });
+      const second = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/callback-b'
+      });
+
+      expect(first.connectionId).not.toBe(second.connectionId);
     });
 
     it('rejects a bank the aggregator does not support', async () => {
@@ -74,6 +87,25 @@ describe('MockAggregatorAdapter', () => {
       await expect(
         adapter.completeConnection({
           connectionId: 'not-a-real-connection',
+          authorizationCode: 'AUTH-OK'
+        })
+      ).rejects.toBeInstanceOf(BankNotSupportedError);
+    });
+
+    it('rejects reusing a connectionId that was already completed (single-use, like a real SCA flow)', async () => {
+      const { connectionId } = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/callback'
+      });
+
+      await adapter.completeConnection({
+        connectionId,
+        authorizationCode: 'AUTH-OK'
+      });
+
+      await expect(
+        adapter.completeConnection({
+          connectionId,
           authorizationCode: 'AUTH-OK'
         })
       ).rejects.toBeInstanceOf(BankNotSupportedError);

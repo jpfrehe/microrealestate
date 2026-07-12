@@ -1,12 +1,21 @@
 import * as Express from 'express';
-import { Collections, Crypto, Service } from '@microrealestate/common';
+import {
+  AggregatorAdapter,
+  BankNotSupportedError,
+  ConsentDeniedError
+} from '../aggregator/adapter.js';
+import {
+  Collections,
+  Crypto,
+  Service,
+  ServiceError
+} from '@microrealestate/common';
 import {
   nextStatusAfterSyncAttempt,
   stripSecrets,
   toBankAccountRecords,
   toTransactionRecords
 } from './bankaccountlogic.js';
-import { AggregatorAdapter } from '../aggregator/adapter.js';
 import MockAggregatorAdapter from '../aggregator/mockadapter.js';
 import { runMatchingForRealm } from './matchingmanager.js';
 import { ServiceRequest } from '@microrealestate/types';
@@ -15,6 +24,24 @@ import { ServiceRequest } from '@microrealestate/types';
 // comparison), the mock adapter lets the connect/sync/matching flow run
 // end-to-end. Swapping providers only requires changing this one line.
 const adapter: AggregatorAdapter = new MockAggregatorAdapter();
+
+// Translates the adapter's domain errors (UC1's alternate flows: unsupported
+// bank, denied SCA/TAN) into the HTTP status codes the landlord frontend
+// needs to tell those cases apart, instead of letting them fall through to a
+// generic 500 from the default error handler.
+async function callAdapter<T>(operation: Promise<T>): Promise<T> {
+  try {
+    return await operation;
+  } catch (error) {
+    if (error instanceof BankNotSupportedError) {
+      throw new ServiceError(error, 422);
+    }
+    if (error instanceof ConsentDeniedError) {
+      throw new ServiceError(error, 409);
+    }
+    throw error;
+  }
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Exported Express handlers - thin I/O wrappers around ./bankaccountlogic.js
@@ -28,10 +55,12 @@ export async function initiateConnection(
   const { bankId } = req.body;
   const { LANDLORD_APP_URL } = Service.getInstance().envConfig.getValues();
 
-  const initiation = await adapter.initiateConnection({
-    bankId,
-    redirectUrl: `${LANDLORD_APP_URL}/${request.realm?._id}/settings/bankaccounts/callback`
-  });
+  const initiation = await callAdapter(
+    adapter.initiateConnection({
+      bankId,
+      redirectUrl: `${LANDLORD_APP_URL}/${request.realm?._id}/settings/bankaccounts/callback`
+    })
+  );
 
   res.json(initiation);
 }
@@ -41,10 +70,9 @@ export async function completeConnection(
   res: Express.Response
 ) {
   const { connectionId, authorizationCode } = req.body;
-  const result = await adapter.completeConnection({
-    connectionId,
-    authorizationCode
-  });
+  const result = await callAdapter(
+    adapter.completeConnection({ connectionId, authorizationCode })
+  );
 
   // the access token never leaves the server unencrypted
   res.json({
@@ -62,10 +90,13 @@ export async function selectAccounts(
   const realmId = String(request.realm?._id);
   const { connectionId, authorizationCode, selections } = req.body;
 
-  const result = await adapter.completeConnection({
-    connectionId,
-    authorizationCode
-  });
+  if (!Array.isArray(selections) || !selections.length) {
+    throw new ServiceError('at least one account must be selected', 400);
+  }
+
+  const result = await callAdapter(
+    adapter.completeConnection({ connectionId, authorizationCode })
+  );
 
   const records = toBankAccountRecords(
     realmId,
@@ -93,10 +124,7 @@ export async function listAccounts(
   res.json(bankAccounts.map(stripSecrets));
 }
 
-export async function syncAccount(
-  req: Express.Request,
-  res: Express.Response
-) {
+export async function syncAccount(req: Express.Request, res: Express.Response) {
   const request = req as ServiceRequest;
   const bankAccount = await Collections.BankAccount.findOne({
     _id: req.params.id,
@@ -133,15 +161,20 @@ export async function syncAccount(
     aggregatorTransactions
   );
 
-  for (const record of records) {
-    // a transaction is only ever imported once per account
-    await Collections.Transaction.updateOne(
-      {
-        bankAccountId: record.bankAccountId,
-        aggregatorTransactionId: record.aggregatorTransactionId
-      },
-      { $setOnInsert: record },
-      { upsert: true }
+  if (records.length) {
+    // one bulk round-trip instead of one upsert per transaction; a
+    // transaction is only ever imported once per account (unique index)
+    await Collections.Transaction.bulkWrite(
+      records.map((record) => ({
+        updateOne: {
+          filter: {
+            bankAccountId: record.bankAccountId,
+            aggregatorTransactionId: record.aggregatorTransactionId
+          },
+          update: { $setOnInsert: record },
+          upsert: true
+        }
+      }))
     );
   }
 

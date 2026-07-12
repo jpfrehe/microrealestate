@@ -88,7 +88,9 @@ describe('computeCashflow', () => {
       tenants: [
         {
           properties: [{ propertyId: 'prop-1', rent: 950 }],
-          rents: [rent(JULY_START, { grandTotal: 1250, balance: 300, payment: 0 })]
+          rents: [
+            rent(JULY_START, { grandTotal: 1250, balance: 300, payment: 0 })
+          ]
         }
       ],
       expenses: [],
@@ -145,12 +147,12 @@ describe('computeCashflow', () => {
       endTerm: JULY_END
     });
 
-    expect(result.properties.find((p) => p.propertyId === 'prop-1').income).toBe(
-      250
-    );
-    expect(result.properties.find((p) => p.propertyId === 'prop-2').income).toBe(
-      250
-    );
+    expect(
+      result.properties.find((p) => p.propertyId === 'prop-1').income
+    ).toBe(250);
+    expect(
+      result.properties.find((p) => p.propertyId === 'prop-2').income
+    ).toBe(250);
   });
 
   it('shows a purely negative cashflow for a vacant property with only expenses', () => {

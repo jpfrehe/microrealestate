@@ -27,6 +27,11 @@ const CONSENT_VALIDITY_DAYS = 90;
 export default class MockAggregatorAdapter implements AggregatorAdapter {
   readonly provider = 'mock';
 
+  // Tracks which bank a connectionId belongs to, so completeConnection()
+  // doesn't have to recover it by parsing the connectionId string (fragile:
+  // a bank id containing '-' would silently break a split()-based lookup).
+  private readonly pendingConnections = new Map<string, string>();
+
   async initiateConnection({
     bankId,
     redirectUrl
@@ -38,7 +43,8 @@ export default class MockAggregatorAdapter implements AggregatorAdapter {
       throw new BankNotSupportedError(bankId);
     }
 
-    const connectionId = `mock-conn-${bankId}-${Buffer.from(redirectUrl).toString('base64url')}`;
+    const connectionId = `mock-conn-${Buffer.from(`${bankId}:${redirectUrl}`).toString('base64url')}`;
+    this.pendingConnections.set(connectionId, bankId);
     return {
       connectionId,
       redirectUrl: `https://mock-aggregator.invalid/sca?connectionId=${connectionId}`
@@ -56,11 +62,13 @@ export default class MockAggregatorAdapter implements AggregatorAdapter {
       throw new ConsentDeniedError();
     }
 
-    const bankId = connectionId.split('-')[2];
-    const bank = SUPPORTED_BANKS[bankId];
+    const bankId = this.pendingConnections.get(connectionId);
+    const bank = bankId && SUPPORTED_BANKS[bankId];
     if (!bank) {
       throw new BankNotSupportedError(bankId || connectionId);
     }
+    // the connectionId is single-use, like a real SCA/consent flow
+    this.pendingConnections.delete(connectionId);
 
     const consentExpiryDate = new Date();
     consentExpiryDate.setDate(

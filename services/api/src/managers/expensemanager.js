@@ -1,12 +1,34 @@
 import { Collections } from '@microrealestate/common';
 
+// Only these fields are ever settable from the request body - protects
+// realmId/source/transactionId/createdDate from being spoofed by a client
+// (e.g. faking source: 'bank_transaction' or linking to an arbitrary
+// transactionId that was never actually matched).
+const EDITABLE_FIELDS = [
+  'propertyId',
+  'category',
+  'amount',
+  'date',
+  'description',
+  'documentId'
+];
+
+function pickEditableFields(body) {
+  return EDITABLE_FIELDS.reduce((fields, key) => {
+    if (body[key] !== undefined) {
+      fields[key] = body[key];
+    }
+    return fields;
+  }, {});
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Exported functions
 ////////////////////////////////////////////////////////////////////////////////
 export async function add(req, res) {
   const realm = req.realm;
   const expense = new Collections.Expense({
-    ...req.body,
+    ...pickEditableFields(req.body),
     realmId: realm._id,
     source: 'manual'
   });
@@ -16,14 +38,13 @@ export async function add(req, res) {
 
 export async function update(req, res) {
   const realm = req.realm;
-  const expense = req.body;
 
   const dbExpense = await Collections.Expense.findOneAndUpdate(
     {
       realmId: realm._id,
-      _id: expense._id
+      _id: req.body._id
     },
-    { ...expense, updatedDate: new Date() },
+    { ...pickEditableFields(req.body), updatedDate: new Date() },
     { new: true }
   ).lean();
 

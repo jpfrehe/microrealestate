@@ -100,7 +100,10 @@ describe('findMatchCandidates', () => {
   it('surfaces multiple candidates when the reference is ambiguous between tenants', () => {
     // both tenants happen to share part of their search terms with the remittance text
     const candidates = findMatchCandidates(
-      { amount: 950, remittanceInformation: 'Miete Musterstrasse 12 und Beispielweg' },
+      {
+        amount: 950,
+        remittanceInformation: 'Miete Musterstrasse 12 und Beispielweg'
+      },
       [musterstrasseClaim, beispielwegClaim]
     );
 
@@ -182,9 +185,9 @@ describe('determineMatchStatus', () => {
       confidence: 0.75,
       reason: 'partial match'
     };
-    expect(determineMatchStatus([candidate, { ...candidate, tenantId: 'tenant-2' }])).toBe(
-      'suggested'
-    );
+    expect(
+      determineMatchStatus([candidate, { ...candidate, tenantId: 'tenant-2' }])
+    ).toBe('suggested');
   });
 });
 

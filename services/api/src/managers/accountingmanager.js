@@ -477,7 +477,7 @@ async function _fetchDatevData(realmId, year, month) {
 // Lets the landlord check for unclassified bookings before downloading the
 // export (see UC4's alternate flow: incomplete/ambiguous data should not
 // silently produce a wrongly-coded DATEV file).
-export async function datevPreview(req, res) {
+async function datevPreview(req, res) {
   const realm = req.realm;
   const { year, month } = req.params;
 
@@ -495,7 +495,7 @@ export async function datevPreview(req, res) {
   res.json({ bookingsCount: bookings.length, unclassified });
 }
 
-export async function datevAsCsv(req, res) {
+async function datevAsCsv(req, res) {
   const realm = req.realm;
   const { year, month } = req.params;
   i18n.setLocale(realm.locale);

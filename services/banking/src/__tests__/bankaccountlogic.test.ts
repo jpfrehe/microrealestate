@@ -102,7 +102,14 @@ describe('toBankAccountRecords', () => {
 
   it('throws when no account was selected', () => {
     expect(() =>
-      toBankAccountRecords('realm-1', 'mock', connectionResult, [], encrypt, now)
+      toBankAccountRecords(
+        'realm-1',
+        'mock',
+        connectionResult,
+        [],
+        encrypt,
+        now
+      )
     ).toThrow('at least one account must be selected');
   });
 });

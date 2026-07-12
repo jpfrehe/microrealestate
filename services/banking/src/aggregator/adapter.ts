@@ -46,7 +46,9 @@ export class BankNotSupportedError extends Error {
 }
 
 export class ConsentDeniedError extends Error {
-  constructor(reason = 'The account holder denied or cancelled the SCA/TAN step') {
+  constructor(
+    reason = 'The account holder denied or cancelled the SCA/TAN step'
+  ) {
     super(reason);
     this.name = 'ConsentDeniedError';
   }

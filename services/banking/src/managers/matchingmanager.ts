@@ -14,7 +14,7 @@ import moment from 'moment';
 // be triggered on demand via POST /banking/transactions/match.
 export async function runMatchingForRealm(realmId: string): Promise<void> {
   const [unmatchedTransactions, tenants] = await Promise.all([
-    Collections.Transaction.find({ realmId, matchStatus: 'unmatched' }),
+    Collections.Transaction.find({ realmId, matchStatus: 'unmatched' }).lean(),
     Collections.Tenant.find({ realmId }).lean()
   ]);
 
@@ -24,19 +24,29 @@ export async function runMatchingForRealm(realmId: string): Promise<void> {
 
   const openClaims = buildOpenRentClaims(tenants);
 
-  for (const transaction of unmatchedTransactions) {
-    const candidates = findMatchCandidates(
-      {
-        amount: transaction.amount,
-        remittanceInformation: transaction.remittanceInformation
-      },
-      openClaims
-    );
+  // one bulk round-trip instead of one save() per transaction
+  await Collections.Transaction.bulkWrite(
+    unmatchedTransactions.map((transaction) => {
+      const candidates = findMatchCandidates(
+        {
+          amount: transaction.amount,
+          remittanceInformation: transaction.remittanceInformation
+        },
+        openClaims
+      );
 
-    transaction.matchCandidates = candidates;
-    transaction.matchStatus = determineMatchStatus(candidates);
-    await transaction.save();
-  }
+      return {
+        updateOne: {
+          filter: { _id: transaction._id },
+          update: {
+            matchCandidates: candidates,
+            matchStatus: determineMatchStatus(candidates),
+            updatedDate: new Date()
+          }
+        }
+      };
+    })
+  );
 }
 
 export async function matchTransactions(
@@ -57,8 +67,8 @@ export async function listTransactions(
     Pick<CollectionTypes.Transaction, 'realmId' | 'matchStatus'>
   > = { realmId: request.realm?._id };
   if (typeof req.query.status === 'string') {
-    filter.matchStatus =
-      req.query.status as CollectionTypes.Transaction['matchStatus'];
+    filter.matchStatus = req.query
+      .status as CollectionTypes.Transaction['matchStatus'];
   }
 
   const transactions = await Collections.Transaction.find(filter)
@@ -137,14 +147,23 @@ export async function ignoreTransaction(
   res: Express.Response
 ) {
   const request = req as ServiceRequest;
+
+  const existing = await Collections.Transaction.findOne({
+    _id: req.params.id,
+    realmId: request.realm?._id
+  }).lean();
+  if (!existing) {
+    return res.sendStatus(404);
+  }
+  if (existing.matchStatus === 'matched') {
+    return res.status(409).json({ message: 'transaction already matched' });
+  }
+
   const transaction = await Collections.Transaction.findOneAndUpdate(
     { _id: req.params.id, realmId: request.realm?._id },
     { matchStatus: 'ignored' },
     { new: true }
   ).lean();
 
-  if (!transaction) {
-    return res.sendStatus(404);
-  }
   res.json(transaction);
 }

@@ -1,3 +1,5 @@
+import { round2 } from './money.js';
+
 // Pure DATEV export logic for UC4 (useCases.md). Kept free of Mongoose/
 // Express so booking classification can be unit-tested with plain data;
 // accountingmanager.js fetches from Mongo and calls into this.
@@ -17,8 +19,15 @@ const DATEV_EXPENSE_ACCOUNTS = {
   other: '4900' // Sonstige betriebliche Aufwendungen
 };
 
-function round2(amount) {
-  return Math.round(amount * 100) / 100;
+// Pushes a booking record into `bookings` when it is cleanly classified, or
+// into `unclassified` (with the reason attached) otherwise - shared by the
+// payment and expense loops in buildDatevBookings below.
+function classify(record, unclassifiedReason, bookings, unclassified) {
+  if (unclassifiedReason) {
+    unclassified.push({ ...record, reason: unclassifiedReason });
+  } else {
+    bookings.push(record);
+  }
 }
 
 export function classifyExpenseAccount(category) {
@@ -60,18 +69,13 @@ export function buildDatevBookings({ payments, expenses, properties }) {
       documentReference: payment.reference || '',
       documentId: payment.documentId || ''
     };
+    const reason = costCenter
+      ? null
+      : payment.propertyIds && payment.propertyIds.length > 1
+        ? 'payment spans multiple properties - assign a cost center manually'
+        : 'no property linked to this payment';
 
-    if (!costCenter) {
-      unclassified.push({
-        ...record,
-        reason:
-          payment.propertyIds && payment.propertyIds.length > 1
-            ? 'payment spans multiple properties - assign a cost center manually'
-            : 'no property linked to this payment'
-      });
-    } else {
-      bookings.push(record);
-    }
+    classify(record, reason, bookings, unclassified);
   });
 
   (expenses || []).forEach((expense) => {
@@ -88,17 +92,13 @@ export function buildDatevBookings({ payments, expenses, properties }) {
       documentReference: expense.documentId || '',
       documentId: expense.documentId || ''
     };
+    const reason = !account
+      ? `unknown expense category "${expense.category}"`
+      : !costCenter
+        ? 'no property linked to this expense'
+        : null;
 
-    if (!account || !costCenter) {
-      unclassified.push({
-        ...record,
-        reason: !account
-          ? `unknown expense category "${expense.category}"`
-          : 'no property linked to this expense'
-      });
-    } else {
-      bookings.push(record);
-    }
+    classify(record, reason, bookings, unclassified);
   });
 
   return { bookings, unclassified };

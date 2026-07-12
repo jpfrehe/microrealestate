@@ -48,7 +48,9 @@ function computeTextScore(
 
   return searchTerms.some((term) => {
     const normalizedTerm = normalize(term);
-    return normalizedTerm.length > 0 && normalizedRemittance.includes(normalizedTerm);
+    return (
+      normalizedTerm.length > 0 && normalizedRemittance.includes(normalizedTerm)
+    );
   })
     ? 1
     : 0;

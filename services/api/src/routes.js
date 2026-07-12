@@ -89,10 +89,7 @@ export default function routes() {
   expensesRouter.get('/', Middlewares.asyncWrapper(expenseManager.all));
   expensesRouter.get('/:id', Middlewares.asyncWrapper(expenseManager.one));
   expensesRouter.post('/', Middlewares.asyncWrapper(expenseManager.add));
-  expensesRouter.patch(
-    '/:id',
-    Middlewares.asyncWrapper(expenseManager.update)
-  );
+  expensesRouter.patch('/:id', Middlewares.asyncWrapper(expenseManager.update));
   expensesRouter.delete(
     '/:ids',
     Middlewares.asyncWrapper(expenseManager.remove)

@@ -1,3 +1,5 @@
+import { round2 } from './money.js';
+
 // Pure cashflow aggregation for UC3 (useCases.md). Kept free of Mongoose/
 // Express - like contract.js/businesslogic - so it can be unit-tested with
 // plain data; dashboardmanager.js fetches from Mongo and calls into this.
@@ -17,13 +19,13 @@ function allocateAcrossProperties(properties, amount) {
     const share = amount / properties.length;
     return properties.map((p) => ({
       propertyId: p.propertyId,
-      amount: Math.round(share * 100) / 100
+      amount: round2(share)
     }));
   }
 
   return properties.map((p) => ({
     propertyId: p.propertyId,
-    amount: Math.round(((amount * (p.rent || 0)) / totalRent) * 100) / 100
+    amount: round2((amount * (p.rent || 0)) / totalRent)
   }));
 }
 
@@ -53,10 +55,9 @@ export function computeCashflow({
     (tenant.rents || [])
       .filter((rent) => isTermInRange(rent.term, startTerm, endTerm))
       .forEach((rent) => {
-        const dueAmount =
-          Math.round(
-            (rent.total.grandTotal - (rent.total.balance || 0)) * 100
-          ) / 100;
+        const dueAmount = round2(
+          rent.total.grandTotal - (rent.total.balance || 0)
+        );
         const paidAmount = rent.total.payment || 0;
 
         allocateAcrossProperties(tenant.properties, dueAmount).forEach(
@@ -75,10 +76,9 @@ export function computeCashflow({
 
   const propertyCashflows = properties.map((property) => {
     const propertyId = String(property._id);
-    const income = Math.round((incomeByProperty.get(propertyId) || 0) * 100) / 100;
-    const due = Math.round((dueByProperty.get(propertyId) || 0) * 100) / 100;
-    const expensesTotal =
-      Math.round((expensesByProperty.get(propertyId) || 0) * 100) / 100;
+    const income = round2(incomeByProperty.get(propertyId) || 0);
+    const due = round2(dueByProperty.get(propertyId) || 0);
+    const expensesTotal = round2(expensesByProperty.get(propertyId) || 0);
 
     return {
       propertyId,
@@ -86,18 +86,18 @@ export function computeCashflow({
       dueAmount: due,
       income,
       expenses: expensesTotal,
-      cashflow: Math.round((income - expensesTotal) * 100) / 100,
-      arrears: Math.round((due - income) * 100) / 100
+      cashflow: round2(income - expensesTotal),
+      arrears: round2(due - income)
     };
   });
 
   const portfolio = propertyCashflows.reduce(
     (acc, p) => ({
-      dueAmount: Math.round((acc.dueAmount + p.dueAmount) * 100) / 100,
-      income: Math.round((acc.income + p.income) * 100) / 100,
-      expenses: Math.round((acc.expenses + p.expenses) * 100) / 100,
-      cashflow: Math.round((acc.cashflow + p.cashflow) * 100) / 100,
-      arrears: Math.round((acc.arrears + p.arrears) * 100) / 100
+      dueAmount: round2(acc.dueAmount + p.dueAmount),
+      income: round2(acc.income + p.income),
+      expenses: round2(acc.expenses + p.expenses),
+      cashflow: round2(acc.cashflow + p.cashflow),
+      arrears: round2(acc.arrears + p.arrears)
     }),
     { dueAmount: 0, income: 0, expenses: 0, cashflow: 0, arrears: 0 }
   );
