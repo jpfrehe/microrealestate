@@ -1,0 +1,269 @@
+import {
+  isConsentExpired,
+  nextStatusAfterSyncAttempt,
+  stripSecrets,
+  toBankAccountRecords,
+  toTransactionRecords
+} from '../managers/bankaccountlogic.js';
+
+describe('toBankAccountRecords', () => {
+  const connectionResult = {
+    accessToken: 'raw-access-token',
+    consentExpiryDate: new Date('2026-10-10T00:00:00Z')
+  };
+  const now = new Date('2026-07-12T00:00:00Z');
+  const encrypt = (text: string) => `ENCRYPTED(${text})`;
+
+  it('maps a single selected account into a persistable, encrypted record', () => {
+    const records = toBankAccountRecords(
+      'realm-1',
+      'mock',
+      connectionResult,
+      [
+        {
+          aggregatorAccountId: 'acc-1',
+          iban: 'DE89370400440532013000',
+          bankName: 'Mockbank AG',
+          accountHolder: 'Demo Landlord',
+          propertyIds: ['prop-1', 'prop-2']
+        }
+      ],
+      encrypt,
+      now
+    );
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      realmId: 'realm-1',
+      propertyIds: ['prop-1', 'prop-2'],
+      aggregatorProvider: 'mock',
+      aggregatorAccountId: 'acc-1',
+      iban: 'DE89370400440532013000',
+      status: 'connected',
+      consentGivenDate: now,
+      consentExpiryDate: connectionResult.consentExpiryDate
+    });
+    // the raw token must never be persisted, only the encrypted form
+    expect(records[0].encryptedAccessToken).toBe('ENCRYPTED(raw-access-token)');
+  });
+
+  it('maps several selected accounts from the same connection', () => {
+    const records = toBankAccountRecords(
+      'realm-1',
+      'mock',
+      connectionResult,
+      [
+        {
+          aggregatorAccountId: 'acc-1',
+          iban: 'DE89370400440532013000',
+          bankName: 'Mockbank AG',
+          accountHolder: 'Demo Landlord',
+          propertyIds: []
+        },
+        {
+          aggregatorAccountId: 'acc-2',
+          iban: 'DE02120300000000202051',
+          bankName: 'Testsparkasse',
+          accountHolder: 'Demo Landlord',
+          propertyIds: ['prop-3']
+        }
+      ],
+      encrypt,
+      now
+    );
+
+    expect(records).toHaveLength(2);
+    expect(records.map((r) => r.aggregatorAccountId)).toEqual([
+      'acc-1',
+      'acc-2'
+    ]);
+  });
+
+  it('defaults propertyIds to an empty array when none were assigned (whole-realm account)', () => {
+    const records = toBankAccountRecords(
+      'realm-1',
+      'mock',
+      connectionResult,
+      [
+        {
+          aggregatorAccountId: 'acc-1',
+          iban: 'DE89370400440532013000',
+          bankName: 'Mockbank AG',
+          accountHolder: 'Demo Landlord',
+          propertyIds: undefined as unknown as string[]
+        }
+      ],
+      encrypt,
+      now
+    );
+
+    expect(records[0].propertyIds).toEqual([]);
+  });
+
+  it('throws when no account was selected', () => {
+    expect(() =>
+      toBankAccountRecords('realm-1', 'mock', connectionResult, [], encrypt, now)
+    ).toThrow('at least one account must be selected');
+  });
+});
+
+describe('isConsentExpired', () => {
+  it('is false while the consent is still valid', () => {
+    expect(
+      isConsentExpired(
+        new Date('2026-10-10T00:00:00Z'),
+        new Date('2026-07-12T00:00:00Z')
+      )
+    ).toBe(false);
+  });
+
+  it('is true once the consent expiry date is in the past', () => {
+    expect(
+      isConsentExpired(
+        new Date('2026-01-01T00:00:00Z'),
+        new Date('2026-07-12T00:00:00Z')
+      )
+    ).toBe(true);
+  });
+
+  it('is true exactly at the expiry instant (boundary)', () => {
+    const expiry = new Date('2026-07-12T00:00:00Z');
+    expect(isConsentExpired(expiry, expiry)).toBe(true);
+  });
+});
+
+describe('nextStatusAfterSyncAttempt', () => {
+  const validExpiry = new Date('2026-10-10T00:00:00Z');
+  const expiredExpiry = new Date('2026-01-01T00:00:00Z');
+  const now = new Date('2026-07-12T00:00:00Z');
+
+  it('keeps a connected account connected while the consent is valid', () => {
+    expect(nextStatusAfterSyncAttempt('connected', validExpiry, now)).toBe(
+      'connected'
+    );
+  });
+
+  it('flips a connected account to reauth_required once the consent expired', () => {
+    expect(nextStatusAfterSyncAttempt('connected', expiredExpiry, now)).toBe(
+      'reauth_required'
+    );
+  });
+
+  it('keeps reauth_required as reauth_required while still expired', () => {
+    expect(
+      nextStatusAfterSyncAttempt('reauth_required', expiredExpiry, now)
+    ).toBe('reauth_required');
+  });
+
+  it('recovers reauth_required back to connected after a fresh consent was granted', () => {
+    // e.g. the landlord re-authorized and the stored consentExpiryDate was updated
+    expect(
+      nextStatusAfterSyncAttempt('reauth_required', validExpiry, now)
+    ).toBe('connected');
+  });
+
+  it('never overrides a landlord-initiated disconnected status', () => {
+    expect(nextStatusAfterSyncAttempt('disconnected', expiredExpiry, now)).toBe(
+      'disconnected'
+    );
+  });
+
+  it('leaves a pending account untouched (no consent to expire yet)', () => {
+    expect(nextStatusAfterSyncAttempt('pending', expiredExpiry, now)).toBe(
+      'pending'
+    );
+  });
+});
+
+describe('toTransactionRecords', () => {
+  it('maps aggregator transactions into unmatched, persistable records', () => {
+    const records = toTransactionRecords('realm-1', 'bank-account-1', [
+      {
+        aggregatorTransactionId: 'tx-1',
+        amount: 950,
+        currency: 'EUR',
+        valueDate: new Date('2026-07-01T00:00:00Z'),
+        bookingDate: new Date('2026-07-02T00:00:00Z'),
+        counterpartyName: 'Max Mustermann',
+        counterpartyIban: 'DE12500105170648489890',
+        remittanceInformation: 'Miete Juli Musterstrasse 12 App 3B'
+      }
+    ]);
+
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      realmId: 'realm-1',
+      bankAccountId: 'bank-account-1',
+      aggregatorTransactionId: 'tx-1',
+      amount: 950,
+      matchStatus: 'unmatched',
+      matchCandidates: []
+    });
+  });
+
+  it('maps an empty aggregator transaction list to an empty array', () => {
+    expect(toTransactionRecords('realm-1', 'bank-account-1', [])).toEqual([]);
+  });
+
+  it('tolerates missing optional counterparty fields', () => {
+    const records = toTransactionRecords('realm-1', 'bank-account-1', [
+      {
+        aggregatorTransactionId: 'tx-2',
+        amount: -45.5,
+        currency: 'EUR',
+        valueDate: new Date('2026-07-05T00:00:00Z'),
+        bookingDate: new Date('2026-07-05T00:00:00Z'),
+        remittanceInformation: 'Gebuehr'
+      }
+    ]);
+
+    expect(records[0].counterpartyName).toBeUndefined();
+    expect(records[0].counterpartyIban).toBeUndefined();
+    expect(records[0].amount).toBe(-45.5);
+  });
+});
+
+describe('stripSecrets', () => {
+  const bankAccount = {
+    _id: 'bank-account-1',
+    realmId: 'realm-1',
+    propertyIds: [],
+    aggregatorProvider: 'mock',
+    aggregatorAccountId: 'acc-1',
+    iban: 'DE89370400440532013000',
+    bankName: 'Mockbank AG',
+    accountHolder: 'Demo Landlord',
+    encryptedAccessToken: 'super-secret-encrypted-token',
+    consentGivenDate: new Date('2026-07-12T00:00:00Z'),
+    consentExpiryDate: new Date('2026-10-10T00:00:00Z'),
+    status: 'connected' as const,
+    createdDate: new Date('2026-07-12T00:00:00Z'),
+    updatedDate: new Date('2026-07-12T00:00:00Z')
+  };
+
+  it('removes the encrypted access token from the returned object', () => {
+    const stripped = stripSecrets(bankAccount);
+
+    expect(stripped).not.toHaveProperty('encryptedAccessToken');
+    expect(Object.keys(stripped)).not.toContain('encryptedAccessToken');
+  });
+
+  it('keeps every other field untouched', () => {
+    const stripped = stripSecrets(bankAccount);
+
+    expect(stripped).toMatchObject({
+      _id: 'bank-account-1',
+      realmId: 'realm-1',
+      iban: 'DE89370400440532013000',
+      bankName: 'Mockbank AG',
+      status: 'connected'
+    });
+  });
+
+  it('does not mutate the original object', () => {
+    stripSecrets(bankAccount);
+    expect(bankAccount.encryptedAccessToken).toBe(
+      'super-secret-encrypted-token'
+    );
+  });
+});

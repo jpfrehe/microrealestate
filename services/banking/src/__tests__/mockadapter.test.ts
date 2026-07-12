@@ -1,0 +1,92 @@
+import {
+  BankNotSupportedError,
+  ConsentDeniedError
+} from '../aggregator/adapter.js';
+import MockAggregatorAdapter from '../aggregator/mockadapter.js';
+
+describe('MockAggregatorAdapter', () => {
+  let adapter: MockAggregatorAdapter;
+
+  beforeEach(() => {
+    adapter = new MockAggregatorAdapter();
+  });
+
+  describe('initiateConnection', () => {
+    it('returns a redirect url and connection id for a supported bank', async () => {
+      const result = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/callback'
+      });
+
+      expect(result.connectionId).toContain('DE_MOCKBANK');
+      expect(result.redirectUrl).toContain(result.connectionId);
+    });
+
+    it('rejects a bank the aggregator does not support', async () => {
+      await expect(
+        adapter.initiateConnection({
+          bankId: 'UNKNOWN_BANK',
+          redirectUrl: 'https://landlord.example.com/callback'
+        })
+      ).rejects.toBeInstanceOf(BankNotSupportedError);
+    });
+  });
+
+  describe('completeConnection', () => {
+    it('returns an access token, a ~90 day consent expiry and the discovered accounts', async () => {
+      const { connectionId } = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/callback'
+      });
+
+      const before = new Date();
+      const result = await adapter.completeConnection({
+        connectionId,
+        authorizationCode: 'AUTH-OK'
+      });
+
+      expect(result.accessToken).toBeTruthy();
+      expect(result.accounts).toHaveLength(1);
+      expect(result.accounts[0].iban).toBe('DE89370400440532013000');
+
+      const daysUntilExpiry =
+        (result.consentExpiryDate.getTime() - before.getTime()) /
+        (1000 * 60 * 60 * 24);
+      expect(daysUntilExpiry).toBeGreaterThan(89);
+      expect(daysUntilExpiry).toBeLessThanOrEqual(90);
+    });
+
+    it('rejects when the account holder denies the SCA/TAN step', async () => {
+      const { connectionId } = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/callback'
+      });
+
+      await expect(
+        adapter.completeConnection({
+          connectionId,
+          authorizationCode: 'DENY'
+        })
+      ).rejects.toBeInstanceOf(ConsentDeniedError);
+    });
+
+    it('rejects a connectionId that was never initiated', async () => {
+      await expect(
+        adapter.completeConnection({
+          connectionId: 'not-a-real-connection',
+          authorizationCode: 'AUTH-OK'
+        })
+      ).rejects.toBeInstanceOf(BankNotSupportedError);
+    });
+  });
+
+  describe('listTransactions', () => {
+    it('returns an empty array by default', async () => {
+      const transactions = await adapter.listTransactions({
+        accessToken: 'token',
+        aggregatorAccountId: 'acc-1'
+      });
+      expect(transactions).toEqual([]);
+    });
+  });
+});
