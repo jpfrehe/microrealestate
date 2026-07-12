@@ -1,6 +1,8 @@
 import {
   isConsentExpired,
   nextStatusAfterSyncAttempt,
+  parseConnectionToken,
+  serializeConnectionToken,
   stripSecrets,
   toBankAccountRecords,
   toTransactionRecords
@@ -272,5 +274,45 @@ describe('stripSecrets', () => {
     expect(bankAccount.encryptedAccessToken).toBe(
       'super-secret-encrypted-token'
     );
+  });
+});
+
+describe('serializeConnectionToken / parseConnectionToken', () => {
+  // a fake, reversible "encryption" so the round trip can be checked without
+  // needing the real Service/CIPHER_KEY setup - the functions under test
+  // don't care which encrypt/decrypt implementation they're given
+  const encrypt = (text: string) => Buffer.from(text).toString('base64url');
+  const decrypt = (text: string) => Buffer.from(text, 'base64url').toString();
+
+  it('round-trips the connection payload through encrypt/decrypt', () => {
+    const payload = {
+      provider: 'mock',
+      accessToken: 'raw-access-token',
+      consentExpiryDate: new Date('2026-10-10T00:00:00Z')
+    };
+
+    const token = serializeConnectionToken(payload, encrypt);
+    expect(token).not.toContain('raw-access-token');
+
+    const parsed = parseConnectionToken(token, decrypt);
+    expect(parsed).toEqual(payload);
+  });
+
+  it('throws when the token was encrypted with a different key (tampered/expired)', () => {
+    const token = serializeConnectionToken(
+      { provider: 'mock', accessToken: 'x', consentExpiryDate: new Date() },
+      encrypt
+    );
+    const wrongDecrypt = () => {
+      throw new Error('bad decrypt');
+    };
+
+    expect(() => parseConnectionToken(token, wrongDecrypt)).toThrow();
+  });
+
+  it('throws on a token that is not valid JSON once decrypted', () => {
+    expect(() =>
+      parseConnectionToken('not-a-real-token', (text) => text)
+    ).toThrow();
   });
 });

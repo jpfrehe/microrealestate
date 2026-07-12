@@ -78,12 +78,46 @@ export async function listTransactions(
   res.json(transactions);
 }
 
+// A confirmation is valid either when it picks one of the engine's own
+// suggested candidates, or - for a transaction that came back 'unmatched'
+// (no candidate found, e.g. the remittance text didn't reference anyone) -
+// when the landlord manually points it at a tenant/term that genuinely has
+// an open balance. Either way this never trusts the client's tenantId/term
+// blindly; it's always checked against real data before booking a payment.
+async function isValidMatch(
+  transaction: {
+    realmId: string;
+    matchCandidates: { tenantId: string; term: number }[];
+  },
+  tenantId: string,
+  term: number
+): Promise<boolean> {
+  if (
+    transaction.matchCandidates.some(
+      (c) => c.tenantId === tenantId && c.term === term
+    )
+  ) {
+    return true;
+  }
+
+  const tenant = await Collections.Tenant.findOne({
+    _id: tenantId,
+    realmId: transaction.realmId
+  }).lean();
+  if (!tenant) {
+    return false;
+  }
+
+  return buildOpenRentClaims([tenant]).some((claim) => claim.term === term);
+}
+
 export async function confirmMatch(
   req: Express.Request,
   res: Express.Response
 ) {
   const request = req as ServiceRequest;
   const { tenantId, term } = req.body;
+  const numericTerm = Number(term);
 
   const transaction = await Collections.Transaction.findOne({
     _id: req.params.id,
@@ -96,19 +130,21 @@ export async function confirmMatch(
     return res.status(409).json({ message: 'transaction already matched' });
   }
 
-  const candidate = transaction.matchCandidates.find(
-    (c) => c.tenantId === tenantId && c.term === Number(term)
-  );
-  if (!candidate) {
-    return res
-      .status(400)
-      .json({ message: 'tenantId/term is not a suggested candidate' });
+  if (
+    !tenantId ||
+    !Number.isFinite(numericTerm) ||
+    !(await isValidMatch(transaction, tenantId, numericTerm))
+  ) {
+    return res.status(400).json({
+      message:
+        'tenantId/term is not a suggested candidate and has no open balance'
+    });
   }
 
   const { API_URL } = Service.getInstance().envConfig.getValues();
   try {
     await axios.patch(
-      `${API_URL}/rents/payment/${tenantId}/${term}`,
+      `${API_URL}/rents/payment/${tenantId}/${numericTerm}`,
       {
         _id: tenantId,
         payments: [
@@ -136,7 +172,7 @@ export async function confirmMatch(
 
   transaction.matchStatus = 'matched';
   transaction.matchedTenantId = tenantId;
-  transaction.matchedTerm = Number(term);
+  transaction.matchedTerm = numericTerm;
   await transaction.save();
 
   res.json(transaction.toObject());

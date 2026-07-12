@@ -4,7 +4,8 @@ import {
   BankNotSupportedError,
   ConnectionInitiation,
   ConnectionResult,
-  ConsentDeniedError
+  ConsentDeniedError,
+  SupportedBank
 } from './adapter.js';
 
 // A deterministic, in-memory aggregator used until a real XS2A provider is
@@ -32,6 +33,13 @@ export default class MockAggregatorAdapter implements AggregatorAdapter {
   // a bank id containing '-' would silently break a split()-based lookup).
   private readonly pendingConnections = new Map<string, string>();
 
+  async listSupportedBanks(): Promise<SupportedBank[]> {
+    return Object.entries(SUPPORTED_BANKS).map(([bankId, bank]) => ({
+      bankId,
+      name: bank.name
+    }));
+  }
+
   async initiateConnection({
     bankId,
     redirectUrl
@@ -45,9 +53,17 @@ export default class MockAggregatorAdapter implements AggregatorAdapter {
 
     const connectionId = `mock-conn-${Buffer.from(`${bankId}:${redirectUrl}`).toString('base64url')}`;
     this.pendingConnections.set(connectionId, bankId);
+
+    // A real aggregator would send the landlord to their bank's own login
+    // page. The mock instead points to a "mock-sca" route that the landlord
+    // frontend renders next to its callback route, so the whole connect
+    // flow is actually clickable end-to-end without a real bank.
+    const mockScaUrl = redirectUrl.replace(/\/callback$/, '/mock-sca');
+    const query = new URLSearchParams({ connectionId, returnUrl: redirectUrl });
+
     return {
       connectionId,
-      redirectUrl: `https://mock-aggregator.invalid/sca?connectionId=${connectionId}`
+      redirectUrl: `${mockScaUrl}?${query.toString()}`
     };
   }
 

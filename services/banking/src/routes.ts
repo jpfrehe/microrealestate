@@ -12,6 +12,8 @@ export default function routes() {
     Middlewares.notRoles(['tenant'])
   );
 
+  router.get('/banks', Middlewares.asyncWrapper(bankAccountManager.listBanks));
+
   const bankAccountsRouter = express.Router();
   bankAccountsRouter.get(
     '/',
@@ -28,6 +30,14 @@ export default function routes() {
   bankAccountsRouter.post(
     '/connect/select',
     Middlewares.asyncWrapper(bankAccountManager.selectAccounts)
+  );
+  bankAccountsRouter.patch(
+    '/:id',
+    Middlewares.asyncWrapper(bankAccountManager.updateAccount)
+  );
+  bankAccountsRouter.post(
+    '/:id/disconnect',
+    Middlewares.asyncWrapper(bankAccountManager.disconnectAccount)
   );
   bankAccountsRouter.post(
     '/:id/sync',

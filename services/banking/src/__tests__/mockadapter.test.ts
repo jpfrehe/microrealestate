@@ -11,6 +11,19 @@ describe('MockAggregatorAdapter', () => {
     adapter = new MockAggregatorAdapter();
   });
 
+  describe('listSupportedBanks', () => {
+    it('returns the mock bank catalogue as bankId/name pairs', async () => {
+      const banks = await adapter.listSupportedBanks();
+
+      expect(banks).toEqual(
+        expect.arrayContaining([
+          { bankId: 'DE_MOCKBANK', name: 'Mockbank AG' },
+          { bankId: 'DE_TESTSPARKASSE', name: 'Testsparkasse' }
+        ])
+      );
+    });
+  });
+
   describe('initiateConnection', () => {
     it('returns a redirect url embedding a connection id for a supported bank', async () => {
       const result = await adapter.initiateConnection({
@@ -20,6 +33,22 @@ describe('MockAggregatorAdapter', () => {
 
       expect(result.connectionId).toBeTruthy();
       expect(result.redirectUrl).toContain(result.connectionId);
+    });
+
+    it('redirects to a mock-sca page next to the given callback, carrying the return url', async () => {
+      const result = await adapter.initiateConnection({
+        bankId: 'DE_MOCKBANK',
+        redirectUrl: 'https://landlord.example.com/acme/banking/callback'
+      });
+
+      const url = new URL(result.redirectUrl);
+      expect(url.origin + url.pathname).toBe(
+        'https://landlord.example.com/acme/banking/mock-sca'
+      );
+      expect(url.searchParams.get('connectionId')).toBe(result.connectionId);
+      expect(url.searchParams.get('returnUrl')).toBe(
+        'https://landlord.example.com/acme/banking/callback'
+      );
     });
 
     it('returns a distinct connection id per call, even for the same bank', async () => {

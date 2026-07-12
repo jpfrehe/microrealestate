@@ -3,6 +3,11 @@
 // interface lets the concrete provider be swapped without touching the
 // connection/sync/matching logic, per the Phase 0 architecture decision.
 
+export type SupportedBank = {
+  bankId: string;
+  name: string;
+};
+
 export type AggregatorAccount = {
   aggregatorAccountId: string;
   iban: string;
@@ -56,6 +61,9 @@ export class ConsentDeniedError extends Error {
 
 export interface AggregatorAdapter {
   readonly provider: string;
+
+  // lets the frontend render a bank picker instead of requiring free-text input
+  listSupportedBanks(): Promise<SupportedBank[]>;
 
   initiateConnection(input: {
     bankId: string;

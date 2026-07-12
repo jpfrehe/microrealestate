@@ -13,6 +13,37 @@ export type BankAccountSelection = {
   propertyIds: string[];
 };
 
+export type ConnectionTokenPayload = Pick<
+  ConnectionResult,
+  'accessToken' | 'consentExpiryDate'
+> & { provider: string };
+
+// completeConnection() and selectAccounts() are two separate HTTP calls (the
+// landlord picks accounts in between), but the aggregator's completion
+// result - most importantly its access token - must only ever be resolved
+// once (a real SCA/consent flow, and this mock, treat a connectionId as
+// single-use). This opaque, encrypted token carries that result across the
+// two calls without a second round-trip to the aggregator and without ever
+// exposing the raw access token to the browser.
+export function serializeConnectionToken(
+  payload: ConnectionTokenPayload,
+  encrypt: (text: string) => string
+): string {
+  return encrypt(JSON.stringify(payload));
+}
+
+export function parseConnectionToken(
+  token: string,
+  decrypt: (text: string) => string
+): ConnectionTokenPayload {
+  const payload = JSON.parse(decrypt(token));
+  return {
+    provider: payload.provider,
+    accessToken: payload.accessToken,
+    consentExpiryDate: new Date(payload.consentExpiryDate)
+  };
+}
+
 // Maps the accounts a landlord picked (out of the accounts returned by
 // completeConnection) into persistable BankAccount records. `encrypt` and
 // `now` are injected so this stays pure and deterministic in tests.

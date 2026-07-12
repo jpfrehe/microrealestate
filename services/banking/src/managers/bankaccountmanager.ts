@@ -12,6 +12,8 @@ import {
 } from '@microrealestate/common';
 import {
   nextStatusAfterSyncAttempt,
+  parseConnectionToken,
+  serializeConnectionToken,
   stripSecrets,
   toBankAccountRecords,
   toTransactionRecords
@@ -47,6 +49,10 @@ async function callAdapter<T>(operation: Promise<T>): Promise<T> {
 // Exported Express handlers - thin I/O wrappers around ./bankaccountlogic.js
 ////////////////////////////////////////////////////////////////////////////////
 
+export async function listBanks(_req: Express.Request, res: Express.Response) {
+  res.json(await adapter.listSupportedBanks());
+}
+
 export async function initiateConnection(
   req: Express.Request,
   res: Express.Response
@@ -58,13 +64,18 @@ export async function initiateConnection(
   const initiation = await callAdapter(
     adapter.initiateConnection({
       bankId,
-      redirectUrl: `${LANDLORD_APP_URL}/${request.realm?._id}/settings/bankaccounts/callback`
+      redirectUrl: `${LANDLORD_APP_URL}/${request.realm?._id}/banking/callback`
     })
   );
 
   res.json(initiation);
 }
 
+// Finishes the SCA/consent step and hands the discovered accounts back to
+// the landlord, together with an opaque, encrypted `connectionToken` that
+// carries the aggregator's access token across to selectAccounts() below -
+// the connectionId itself is single-use (like a real consent flow) and
+// can't be exchanged with the aggregator a second time.
 export async function completeConnection(
   req: Express.Request,
   res: Express.Response
@@ -74,10 +85,18 @@ export async function completeConnection(
     adapter.completeConnection({ connectionId, authorizationCode })
   );
 
-  // the access token never leaves the server unencrypted
+  const connectionToken = serializeConnectionToken(
+    {
+      provider: adapter.provider,
+      accessToken: result.accessToken,
+      consentExpiryDate: result.consentExpiryDate
+    },
+    Crypto.encrypt
+  );
+
+  // the raw access token never leaves the server, only this encrypted token
   res.json({
-    connectionId,
-    consentExpiryDate: result.consentExpiryDate,
+    connectionToken,
     accounts: result.accounts
   });
 }
@@ -88,20 +107,23 @@ export async function selectAccounts(
 ) {
   const request = req as ServiceRequest;
   const realmId = String(request.realm?._id);
-  const { connectionId, authorizationCode, selections } = req.body;
+  const { connectionToken, selections } = req.body;
 
   if (!Array.isArray(selections) || !selections.length) {
     throw new ServiceError('at least one account must be selected', 400);
   }
 
-  const result = await callAdapter(
-    adapter.completeConnection({ connectionId, authorizationCode })
-  );
+  let connection;
+  try {
+    connection = parseConnectionToken(connectionToken, Crypto.decrypt);
+  } catch (error) {
+    throw new ServiceError('invalid or expired connection token', 400);
+  }
 
   const records = toBankAccountRecords(
     realmId,
-    adapter.provider,
-    result,
+    connection.provider,
+    connection,
     selections,
     Crypto.encrypt
   );
@@ -122,6 +144,50 @@ export async function listAccounts(
   }).lean();
 
   res.json(bankAccounts.map(stripSecrets));
+}
+
+// Lets the landlord change which properties a connected account is
+// attributed to after the fact, without having to reconnect the account.
+export async function updateAccount(
+  req: Express.Request,
+  res: Express.Response
+) {
+  const request = req as ServiceRequest;
+  const { propertyIds } = req.body;
+
+  if (!Array.isArray(propertyIds)) {
+    throw new ServiceError('propertyIds must be an array', 400);
+  }
+
+  const bankAccount = await Collections.BankAccount.findOneAndUpdate(
+    { _id: req.params.id, realmId: request.realm?._id },
+    { propertyIds, updatedDate: new Date() },
+    { new: true }
+  ).lean();
+
+  if (!bankAccount) {
+    return res.sendStatus(404);
+  }
+  res.json(stripSecrets(bankAccount));
+}
+
+// Landlord-initiated disconnect (UC1): stops future syncs without deleting
+// the historical transactions already imported from this account.
+export async function disconnectAccount(
+  req: Express.Request,
+  res: Express.Response
+) {
+  const request = req as ServiceRequest;
+  const bankAccount = await Collections.BankAccount.findOneAndUpdate(
+    { _id: req.params.id, realmId: request.realm?._id },
+    { status: 'disconnected', updatedDate: new Date() },
+    { new: true }
+  ).lean();
+
+  if (!bankAccount) {
+    return res.sendStatus(404);
+  }
+  res.json(stripSecrets(bankAccount));
 }
 
 export async function syncAccount(req: Express.Request, res: Express.Response) {
