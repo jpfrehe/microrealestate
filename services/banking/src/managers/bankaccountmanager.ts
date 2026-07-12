@@ -8,6 +8,7 @@ import {
 } from './bankaccountlogic.js';
 import { AggregatorAdapter } from '../aggregator/adapter.js';
 import MockAggregatorAdapter from '../aggregator/mockadapter.js';
+import { runMatchingForRealm } from './matchingmanager.js';
 import { ServiceRequest } from '@microrealestate/types';
 
 // Until a real XS2A provider is contracted (see system.md's provider
@@ -147,6 +148,9 @@ export async function syncAccount(
   bankAccount.status = status;
   bankAccount.lastSyncDate = now;
   await bankAccount.save();
+
+  // surface matching suggestions (UC2) as soon as new transactions land
+  await runMatchingForRealm(String(bankAccount.realmId));
 
   res.json(stripSecrets(bankAccount.toObject()));
 }
