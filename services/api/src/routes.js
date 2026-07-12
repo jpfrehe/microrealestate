@@ -115,6 +115,14 @@ export default function routes() {
     '/csv/settlements/:year',
     Middlewares.asyncWrapper(accountingManager.csv.settlements)
   );
+  router.get(
+    '/accounting/:year/:month/datev/preview',
+    Middlewares.asyncWrapper(accountingManager.datev.preview)
+  );
+  router.get(
+    '/accounting/:year/:month/datev',
+    Middlewares.asyncWrapper(accountingManager.datev.csv)
+  );
 
   const emailRouter = express.Router();
   emailRouter.post('/', Middlewares.asyncWrapper(emailManager.send));
