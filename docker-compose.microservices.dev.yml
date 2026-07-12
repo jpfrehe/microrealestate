@@ -177,6 +177,28 @@ services:
     ports:
       - '$TENANTAPI_DEBUG_PORT:9240'
   ###############################################################################
+  # banking
+  ###############################################################################
+  banking:
+    build:
+      context: .
+      dockerfile: services/banking/dev.Dockerfile
+    environment:
+      - NODE_OPTIONS=--trace-warnings
+    volumes:
+      - ./package.json:/usr/app/package.json
+      - ./types/src:/usr/app/types/src
+      - ./types/package.json:/usr/app/types/package.json
+      - ./types/tsconfig.json:/usr/app/types/tsconfig.json
+      - ./services/common/src:/usr/app/services/common/src
+      - ./services/common/package.json:/usr/app/services/common/package.json
+      - ./services/common/tsconfig.json:/usr/app/services/common/tsconfig.json
+      - ./services/banking/src:/usr/app/services/banking/src
+      - ./services/banking/package.json:/usr/app/services/banking/package.json
+      - ./services/banking/tsconfig.json:/usr/app/services/banking/tsconfig.json
+    ports:
+      - '$BANKING_DEBUG_PORT:9241'
+  ###############################################################################
   # Landlord frontend
   ###############################################################################
   landlord-frontend:

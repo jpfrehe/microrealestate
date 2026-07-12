@@ -39,7 +39,8 @@ async function Main() {
         DOMAIN_URL: process.env.DOMAIN_URL || 'http://localhost', // deprecated
         APP_DOMAIN: process.env.APP_DOMAIN,
         CORS_ENABLED: process.env.CORS_ENABLED === 'true',
-        TENANTAPI_URL: process.env.TENANTAPI_URL
+        TENANTAPI_URL: process.env.TENANTAPI_URL,
+        BANKING_URL: process.env.BANKING_URL
       })
     );
     await service.init({
@@ -130,6 +131,14 @@ function exposeServices(application: Express.Application) {
   );
 
   application.use(
+    '/api/v2/banking',
+    createProxyMiddleware({
+      target: config.BANKING_URL,
+      pathRewrite: { '^/api/v2/banking': '' }
+    })
+  );
+
+  application.use(
     '/api/v2',
     createProxyMiddleware({
       target: config.API_URL,
@@ -168,7 +177,8 @@ function exposeHealthCheck(application: Express.Application) {
         config.API_URL,
         config.TENANTAPI_URL,
         config.PDFGENERATOR_URL,
-        config.EMAILER_URL
+        config.EMAILER_URL,
+        config.BANKING_URL
       ];
 
       if (!config.PRODUCTION) {

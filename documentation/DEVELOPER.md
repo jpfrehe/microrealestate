@@ -12,6 +12,7 @@ Here is a diagram showcasing the microservices on the backend and the two fronte
 | [Authenticator](../services/authenticator) | Handles login/logout and tokens management                                     |     Available      |
 | [API](../services/api)                     | Landlord REST API                                                              |     Available      |
 | [tenantApi](../services/tenantapi)         | Tenant REST API                                                                |     Available      |
+| [Banking](../services/banking)             | XS2A/open-banking account connection and payment reconciliation               |     Available      |
 | [EMailer](../services/emailer)             | Generates and sends emails with [Gmail] or [mailgun](https://www.mailgun.com/) |     Available      |
 | [PDFGenerator](../services/pdfgenerator)   | Generates PDF documents (letters, contracts, invoices...)                      |     Available      |
 | [ResetService](../services/resetservice)   | Uses to erase all data, only active in DEV and CI environments                 |     Available      |

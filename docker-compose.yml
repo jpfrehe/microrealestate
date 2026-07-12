@@ -67,6 +67,7 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:-localhost}${APP_PORT:+:}${APP_PORT}
       CORS_ENABLED: 'true'
       TENANTAPI_URL: http://tenantapi:8250/tenantapi
+      BANKING_URL: http://banking:8260/banking
     ports:
       - '8080:8080'
     # healthcheck:
@@ -87,6 +88,8 @@ services:
       api:
         condition: service_started
       tenantapi:
+        condition: service_started
+      banking:
         condition: service_started
       pdfgenerator:
         condition: service_started
@@ -246,6 +249,31 @@ services:
       - net
     depends_on:
       mongo:
+        condition: service_started
+  ###############################################################################
+  # banking
+  ###############################################################################
+  banking:
+    restart: unless-stopped
+    image: 'ghcr.io/microrealestate/microrealestate/banking:${MRE_VERSION:-latest}'
+    environment:
+      NODE_ENV: production
+      PORT: 8260
+      LOGGER_LEVEL: info
+      MONGO_URL: ${MONGO_URL:-mongodb://mongo/mredb}
+      API_URL: http://api:8200/api/v2
+      LANDLORD_APP_URL: ${APP_PROTOCOL:-http}://${APP_DOMAIN:-localhost}${APP_PORT:+:}${APP_PORT}/landlord
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-access_token_secret} # Change secret in production
+      CIPHER_KEY: ${CIPHER_KEY:-cipher_key} # Change key in production
+      CIPHER_IV_KEY: ${CIPHER_IV_KEY:-cipher_iv_key} # Change key in production
+    expose:
+      - '8260'
+    networks:
+      - net
+    depends_on:
+      mongo:
+        condition: service_started
+      api:
         condition: service_started
   ###############################################################################
   # Landlord frontend

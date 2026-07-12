@@ -131,6 +131,25 @@ services:
         limits:
           memory: 500M
   ###############################################################################
+  # banking
+  ###############################################################################
+  banking:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: services/banking/Dockerfile
+    # logging:
+    #   driver: syslog
+    #   options:
+    #     syslog-address: 'udp://localhost:$LOGSTASH_UDP_PORT'
+    #     tag: '{{.Name}}/{{.ID}}'
+    # depends_on:
+    #   - kibana
+    deploy:
+      resources:
+        limits:
+          memory: 500M
+  ###############################################################################
   # Landlord frontend
   ###############################################################################
   landlord-frontend:

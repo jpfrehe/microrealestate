@@ -25,6 +25,7 @@ export type EnvironmentValues = {
   APP_PROTOCOL?: string;
   CORS_ENABLED?: boolean;
   TENANTAPI_URL?: string;
+  BANKING_URL?: string;
   EMAILER_URL?: string;
   DATA_DIRECTORY?: string;
   TEMPLATES_DIRECTORY?: string;

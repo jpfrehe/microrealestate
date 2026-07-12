@@ -48,6 +48,7 @@ services:
       - DOMAIN_URL
       - CORS_ENABLED
       - TENANTAPI_URL
+      - BANKING_URL
     ports:
       - '$GATEWAY_PORT:8080'
     networks:
@@ -56,6 +57,7 @@ services:
       - authenticator
       - api
       - tenantapi
+      - banking
       - pdfgenerator
       - emailer
   ###############################################################################
@@ -187,6 +189,28 @@ services:
       - net
     depends_on:
       - mongo
+  ###############################################################################
+  # banking
+  ###############################################################################
+  banking:
+    image: 'ghcr.io/microrealestate/microrealestate/banking:${MRE_VERSION:-latest}'
+    environment:
+      - NODE_ENV
+      - PORT=$BANKING_PORT
+      - LOGGER_LEVEL
+      - MONGO_URL
+      - API_URL
+      - LANDLORD_APP_URL
+      - ACCESS_TOKEN_SECRET=$AUTHENTICATOR_ACCESS_TOKEN_SECRET
+      - CIPHER_KEY
+      - CIPHER_IV_KEY
+    expose:
+      - '$BANKING_PORT'
+    networks:
+      - net
+    depends_on:
+      - mongo
+      - api
   ###############################################################################
   # Landlord frontend
   ###############################################################################

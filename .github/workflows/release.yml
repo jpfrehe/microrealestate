@@ -63,6 +63,9 @@ jobs:
             - appname: tenantapi
               image: ghcr.io/${{ github.repository }}/tenantapi
               dockerfile: services/tenantapi/Dockerfile
+            - appname: banking
+              image: ghcr.io/${{ github.repository }}/banking
+              dockerfile: services/banking/Dockerfile
             - appname: authenticator
               image: ghcr.io/${{ github.repository }}/authenticator
               dockerfile: services/authenticator/Dockerfile
