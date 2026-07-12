@@ -3,8 +3,10 @@ import { setAccessToken, setOrganizationId } from '../utils/fetch';
 
 import Accounting from './Accounting';
 import AppHistory from './AppHistory';
+import Banking from './Banking';
 import Dashboard from './Dashboard';
 import Document from './Document';
+import Expense from './Expense';
 import Lease from './Lease';
 import moment from 'moment';
 import Organization from './Organization';
@@ -27,6 +29,8 @@ export default class Store {
     this.document = new Document();
     this.dashboard = new Dashboard();
     this.accounting = new Accounting();
+    this.banking = new Banking();
+    this.expense = new Expense();
 
     makeObservable(this, {
       user: observable,
@@ -39,6 +43,8 @@ export default class Store {
       document: observable,
       dashboard: observable,
       accounting: observable,
+      banking: observable,
+      expense: observable,
       appHistory: observable
     });
   }
@@ -77,6 +83,14 @@ export default class Store {
       },
       accounting = {
         data: {}
+      },
+      banking = {
+        banks: [],
+        accounts: [],
+        transactions: []
+      },
+      expense = {
+        items: []
       },
       appHistory = {
         previousPath: '/'
@@ -130,6 +144,13 @@ export default class Store {
     this.dashboard.data = dashboard.data;
 
     this.accounting.data = accounting.data;
+
+    this.banking.banks = banking.banks;
+    this.banking.accounts = banking.accounts;
+    this.banking.transactions = banking.transactions;
+
+    this.expense.items = expense.items;
+
     this.appHistory.previousPath = appHistory.previousPath;
   }
 }

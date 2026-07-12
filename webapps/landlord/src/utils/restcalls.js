@@ -7,7 +7,12 @@ export const QueryKeys = {
   PROPERTIES: 'properties',
   TENANTS: 'tenants',
   RENTS: 'rents',
-  LEASES: 'leases'
+  LEASES: 'leases',
+  BANKS: 'banks',
+  BANK_ACCOUNTS: 'bankAccounts',
+  TRANSACTIONS: 'transactions',
+  EXPENSES: 'expenses',
+  DATEV_PREVIEW: 'datevPreview'
 };
 
 export async function fetchDashboard(store) {
@@ -71,5 +76,32 @@ export async function fetchLeases(store) {
 
 export async function updateLease({ store, lease }) {
   const response = await store.lease.update(lease);
+  return response.data;
+}
+
+export async function fetchBanks(store) {
+  const response = await store.banking.fetchBanks();
+  return response.data;
+}
+
+export async function fetchBankAccounts(store) {
+  const response = await store.banking.fetchAccounts();
+  return response.data;
+}
+
+export async function fetchTransactions(store, status) {
+  const response = await store.banking.fetchTransactions(status);
+  return response.data;
+}
+
+export async function fetchExpenses(store, propertyId) {
+  const response = await store.expense.fetch(propertyId);
+  return response.data;
+}
+
+export async function fetchDatevPreview(store, year, month) {
+  const response = await apiFetcher().get(
+    `/accounting/${year}/${month}/datev/preview`
+  );
   return response.data;
 }

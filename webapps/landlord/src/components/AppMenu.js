@@ -1,5 +1,6 @@
 import {
   LuKeyRound,
+  LuLandmark,
   LuLayoutDashboard,
   LuMenu,
   LuSettings,
@@ -64,6 +65,13 @@ const menuItems = [
     pathname: '/accounting/[year]',
     Icon: LuWallet,
     dataCy: 'accountingNav'
+  },
+  {
+    key: 'banking',
+    labelId: 'Bank accounts',
+    pathname: '/banking',
+    Icon: LuLandmark,
+    dataCy: 'bankingNav'
   },
   {
     key: 'settings',
