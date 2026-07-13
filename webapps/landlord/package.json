@@ -48,7 +48,7 @@
     "@tiptap/pm": "2.6.6",
     "@tiptap/react": "2.6.6",
     "@tiptap/starter-kit": "2.6.6",
-    "axios": "1.8.4",
+    "axios": "1.16.0",
     "class-variance-authority": "0.7.0",
     "clsx": "2.1.0",
     "currency-codes": "2.1.0",
@@ -81,7 +81,7 @@
     "yup": "0.32.11"
   },
   "devDependencies": {
-    "@babel/core": "7.21.3",
+    "@babel/core": "7.29.6",
     "@types/lodash": "4.17.5",
     "autoprefixer": "10.4.20",
     "babel-loader": "8.2.5",
