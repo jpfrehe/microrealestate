@@ -6,6 +6,7 @@ import {
 } from '../../../components/ui/tabs';
 import { useCallback, useContext } from 'react';
 import { Card } from '../../../components/ui/card';
+import DatevExport from '../../../components/accounting/DatevExport';
 import { downloadDocument } from '../../../utils/fetch';
 import IncomingTenants from '../../../components/accounting/IncomingTenants';
 import moment from 'moment';
@@ -139,6 +140,9 @@ function Accounting() {
           )} (${
             store.accounting.filteredData.settlements?.length || 0
           })`}</TabsTrigger>
+          <TabsTrigger value="datev" className="min-w-48 sm:w-full">
+            {t('DATEV export')}
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="incoming">
           <IncomingTenants onCSVClick={getIncomingTenantsAsCsv} />
@@ -151,6 +155,9 @@ function Accounting() {
             onCSVClick={getSettlementsAsCsv}
             onDownloadYearInvoices={getYearInvoices}
           />
+        </TabsContent>
+        <TabsContent value="datev">
+          <DatevExport year={router.query.year || moment().year()} />
         </TabsContent>
       </Tabs>
     </Page>

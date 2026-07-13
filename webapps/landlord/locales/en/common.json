@@ -525,5 +525,15 @@
   "Assign": "Assign",
   "open": "open",
   "paid": "paid",
-  "Payment confirmed": "Payment confirmed"
+  "Payment confirmed": "Payment confirmed",
+  "DATEV export": "DATEV export",
+  "Download DATEV export": "Download DATEV export",
+  "{{count}} bookings ready for export": "{{count}} bookings ready for export",
+  "Open booking proposals": "Open booking proposals",
+  "This period still has {{count}} unresolved bank transactions - the export may be incomplete.": "This period still has {{count}} unresolved bank transactions - the export may be incomplete.",
+  "Unclassified bookings ({{count}})": "Unclassified bookings ({{count}})",
+  "Tax advisor email": "Tax advisor email",
+  "Send to tax advisor": "Send to tax advisor",
+  "No tax advisor email configured": "No tax advisor email configured",
+  "Export sent to the tax advisor": "Export sent to the tax advisor"
 }

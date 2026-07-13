@@ -523,5 +523,15 @@
   "Assign": "Zuordnen",
   "open": "offen",
   "paid": "bezahlt",
-  "Payment confirmed": "Zahlung bestätigt"
+  "Payment confirmed": "Zahlung bestätigt",
+  "DATEV export": "DATEV-Export",
+  "Download DATEV export": "DATEV-Export herunterladen",
+  "{{count}} bookings ready for export": "{{count}} Buchungen bereit für den Export",
+  "Open booking proposals": "Offene Buchungsvorschläge",
+  "This period still has {{count}} unresolved bank transactions - the export may be incomplete.": "Für diesen Zeitraum gibt es noch {{count}} ungeklärte Banktransaktionen - der Export könnte unvollständig sein.",
+  "Unclassified bookings ({{count}})": "Ungeklärte Buchungen ({{count}})",
+  "Tax advisor email": "E-Mail des Steuerberaters",
+  "Send to tax advisor": "An Steuerberater senden",
+  "No tax advisor email configured": "Keine E-Mail-Adresse des Steuerberaters hinterlegt",
+  "Export sent to the tax advisor": "Export an den Steuerberater gesendet"
 }
