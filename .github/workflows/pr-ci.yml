@@ -238,15 +238,18 @@ jobs:
       - name: Install dependencies
         run: yarn install --immutable
 
-      # banking imports @microrealestate/common's compiled dist/ output at
-      # runtime (its test files import the .ts source directly, but the
-      # non-test source resolves the package via its "main" field), so it
-      # needs to be built first - the other workspaces here don't need this.
-      - name: Build @microrealestate/common (dependency of banking)
-        if: matrix.workspace == '@microrealestate/banking'
-        run: |
-          yarn workspace @microrealestate/types run build
-          yarn workspace @microrealestate/common run build
+      # common's own tests type-check against @microrealestate/types, and
+      # both api's and banking's tests import @microrealestate/common's
+      # compiled dist/ output (api: Collections directly in a test; banking:
+      # its non-test source resolves the package via its "main" field) - all
+      # three need types built first, api and banking need common built too.
+      - name: Build @microrealestate/types
+        if: matrix.workspace == '@microrealestate/api' || matrix.workspace == '@microrealestate/common' || matrix.workspace == '@microrealestate/banking'
+        run: yarn workspace @microrealestate/types run build
+
+      - name: Build @microrealestate/common (dependency of api/banking)
+        if: matrix.workspace == '@microrealestate/api' || matrix.workspace == '@microrealestate/banking'
+        run: yarn workspace @microrealestate/common run build
 
       - name: Run unit tests
         run: yarn workspace ${{ matrix.workspace }} run test

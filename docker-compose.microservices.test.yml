@@ -24,7 +24,7 @@ services:
       - REDIS_PASSWORD
       - MONGO_URL
     expose:
-      - "$RESETSERVICE_PORT"
+      - '$RESETSERVICE_PORT'
     networks:
       - net
     depends_on:

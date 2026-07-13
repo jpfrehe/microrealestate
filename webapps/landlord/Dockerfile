@@ -38,7 +38,7 @@ RUN touch /usr/app/webapps/landlord/public/__ENV.js
 RUN chown -R 1000 /usr/app/webapps/landlord/.next && \
     chown -R 1000 /usr/app/webapps/landlord/public
 
-FROM gcr.io/distroless/nodejs20-debian12
+FROM gcr.io/distroless/nodejs20-debian12@sha256:6fe218dbad37e979c7542e670d28d6e23d3f53d2929693bc9cdded8b622f339f
 WORKDIR /usr/app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=build /usr/app/webapps/landlord/public ./public
