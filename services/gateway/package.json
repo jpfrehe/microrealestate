@@ -30,7 +30,7 @@
     "@microrealestate/common": "*",
     "axios": "1.8.4",
     "cors": "2.8.5",
-    "http-proxy-middleware": "2.0.7"
+    "http-proxy-middleware": "2.0.10"
   },
   "devDependencies": {
     "@microrealestate/types": "*",
