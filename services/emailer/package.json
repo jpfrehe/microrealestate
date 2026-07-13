@@ -38,7 +38,7 @@
     "jsonwebtoken": "9.0.0",
     "locale": "0.1.0",
     "moment": "2.29.4",
-    "nodemailer": "6.9.14",
+    "nodemailer": "9.0.1",
     "nodemailer-mailgun-transport": "2.1.5"
   },
   "devDependencies": {
