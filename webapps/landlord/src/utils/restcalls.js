@@ -7,7 +7,9 @@ export const QueryKeys = {
   PROPERTIES: 'properties',
   TENANTS: 'tenants',
   RENTS: 'rents',
-  LEASES: 'leases'
+  LEASES: 'leases',
+  BANK_ACCOUNTS: 'bankAccounts',
+  BANKING_TRANSACTIONS: 'bankingTransactions'
 };
 
 export async function fetchDashboard(store) {
@@ -66,6 +68,11 @@ export async function fetchRents(store, yearMonth) {
 
 export async function fetchLeases(store) {
   const response = await store.lease.fetch();
+  return response.data;
+}
+
+export async function fetchBankAccounts(store) {
+  const response = await store.bankAccount.fetch();
   return response.data;
 }
 

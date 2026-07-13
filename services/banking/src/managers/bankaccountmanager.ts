@@ -30,7 +30,9 @@ export async function initiateConnection(
 
   const initiation = await adapter.initiateConnection({
     bankId,
-    redirectUrl: `${LANDLORD_APP_URL}/${request.realm?._id}/settings/bankaccounts/callback`
+    // the landlord frontend's dynamic route segment is the realm's name
+    // slug (see webapps/landlord's [organization] pages), not its _id
+    redirectUrl: `${LANDLORD_APP_URL}/${request.realm?.name}/settings/bankaccounts/callback`
   });
 
   res.json(initiation);
@@ -93,10 +95,7 @@ export async function listAccounts(
   res.json(bankAccounts.map(stripSecrets));
 }
 
-export async function syncAccount(
-  req: Express.Request,
-  res: Express.Response
-) {
+export async function syncAccount(req: Express.Request, res: Express.Response) {
   const request = req as ServiceRequest;
   const bankAccount = await Collections.BankAccount.findOne({
     _id: req.params.id,

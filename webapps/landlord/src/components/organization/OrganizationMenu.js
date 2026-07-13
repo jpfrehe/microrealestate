@@ -3,6 +3,7 @@ import {
   LuCable,
   LuCoins,
   LuCrown,
+  LuLandmark,
   LuUser,
   LuUsers
 } from 'react-icons/lu';
@@ -78,6 +79,13 @@ const menuItems = [
       labelId: 'Third-parties',
       pathname: '/settings/thirdparties',
       dataCy: 'thirdpartiesNav'
+    },
+    {
+      key: 'bankaccounts',
+      Icon: LuLandmark,
+      labelId: 'Bank accounts',
+      pathname: '/settings/bankaccounts',
+      dataCy: 'bankAccountsNav'
     }
   ]
 ];

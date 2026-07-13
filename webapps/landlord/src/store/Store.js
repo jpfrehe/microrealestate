@@ -3,6 +3,7 @@ import { setAccessToken, setOrganizationId } from '../utils/fetch';
 
 import Accounting from './Accounting';
 import AppHistory from './AppHistory';
+import BankAccount from './BankAccount';
 import Dashboard from './Dashboard';
 import Document from './Document';
 import Expense from './Expense';
@@ -29,6 +30,7 @@ export default class Store {
     this.dashboard = new Dashboard();
     this.accounting = new Accounting();
     this.expense = new Expense();
+    this.bankAccount = new BankAccount();
 
     makeObservable(this, {
       user: observable,
@@ -42,6 +44,7 @@ export default class Store {
       dashboard: observable,
       accounting: observable,
       expense: observable,
+      bankAccount: observable,
       appHistory: observable
     });
   }
