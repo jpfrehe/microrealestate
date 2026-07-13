@@ -1,4 +1,5 @@
 import {
+  LuInbox,
   LuKeyRound,
   LuLayoutDashboard,
   LuMenu,
@@ -64,6 +65,13 @@ const menuItems = [
     pathname: '/accounting/[year]',
     Icon: LuWallet,
     dataCy: 'accountingNav'
+  },
+  {
+    key: 'bookingproposals',
+    labelId: 'Booking proposals',
+    pathname: '/bookingproposals',
+    Icon: LuInbox,
+    dataCy: 'bookingProposalsNav'
   },
   {
     key: 'settings',

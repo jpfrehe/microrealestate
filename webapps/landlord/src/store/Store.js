@@ -14,6 +14,7 @@ import Property from './Property';
 import Rent from './Rent';
 import Template from './Template';
 import Tenant from './Tenant';
+import Transaction from './Transaction';
 import User from './User';
 
 export default class Store {
@@ -31,6 +32,7 @@ export default class Store {
     this.accounting = new Accounting();
     this.expense = new Expense();
     this.bankAccount = new BankAccount();
+    this.transaction = new Transaction();
 
     makeObservable(this, {
       user: observable,
@@ -45,6 +47,7 @@ export default class Store {
       accounting: observable,
       expense: observable,
       bankAccount: observable,
+      transaction: observable,
       appHistory: observable
     });
   }

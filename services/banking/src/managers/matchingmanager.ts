@@ -100,6 +100,10 @@ export async function listTransactions(
   res.json(transactions);
 }
 
+// Confirms a match, either one of the engine's suggested candidates or a
+// fully manual assignment (UC2's "keine eindeutige Zuordnung" / "nicht
+// zugeordnet" flow - the landlord picks the tenant/term themselves). Either
+// way the target tenant/term must actually exist in this realm.
 export async function confirmMatch(
   req: Express.Request,
   res: Express.Response
@@ -118,13 +122,20 @@ export async function confirmMatch(
     return res.status(409).json({ message: 'transaction already matched' });
   }
 
-  const candidate = transaction.matchCandidates.find(
+  const isSuggestedCandidate = transaction.matchCandidates.some(
     (c) => c.tenantId === tenantId && c.term === Number(term)
   );
-  if (!candidate) {
-    return res
-      .status(400)
-      .json({ message: 'tenantId/term is not a suggested candidate' });
+  if (!isSuggestedCandidate) {
+    const tenant = await Collections.Tenant.findOne({
+      _id: tenantId,
+      realmId: request.realm?._id
+    }).lean();
+    const rentExists = tenant?.rents.some((r) => r.term === Number(term));
+    if (!rentExists) {
+      return res
+        .status(400)
+        .json({ message: 'tenantId/term is not a valid rent term' });
+    }
   }
 
   const { API_URL } = Service.getInstance().envConfig.getValues();
