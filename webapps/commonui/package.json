@@ -22,7 +22,7 @@
     "generateStrings": "node scripts/extractlocalizedstrings.js"
   },
   "devDependencies": {
-    "@babel/core": "7.21.3",
+    "@babel/core": "7.29.6",
     "eslint": "8.57.0",
     "eslint-config-prettier": "9.1.0",
     "eslint-plugin-import": "2.29.1",
