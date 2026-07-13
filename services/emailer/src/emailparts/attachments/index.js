@@ -4,6 +4,19 @@ import fs from 'fs';
 import i18n from 'i18n';
 import moment from 'moment';
 
+// year/month ultimately come from the :year/:month segments of the
+// landlord-facing /accounting/:year/:month/datev/send URL - validated here
+// too (fetchdatevcsv.js validates independently) so this file's own use of
+// them in a path/filename stays defensible on its own.
+function toDatevFilename(params) {
+  const year = String(params.year);
+  const month = String(params.month);
+  if (!/^\d{4}$/.test(year) || !/^\d{1,2}$/.test(month)) {
+    throw new Error(`invalid year/month: ${year}/${month}`);
+  }
+  return `datev-${year}-${month.padStart(2, '0')}.csv`;
+}
+
 export async function build(
   authorizationHeader,
   locale,
@@ -14,7 +27,7 @@ export async function build(
   emailData
 ) {
   if (templateName === 'datev_export') {
-    const filename = `datev-${params.year}-${String(params.month).padStart(2, '0')}.csv`;
+    const filename = toDatevFilename(params);
     const filePath = await fetchDatevCsv(
       authorizationHeader,
       organizationId,

@@ -3,6 +3,24 @@ import fs from 'fs';
 import path from 'path';
 import { Service } from '@microrealestate/common';
 
+// year/month ultimately originate from the :year/:month segments of the
+// landlord-facing /accounting/:year/:month/datev/send URL - reject anything
+// that isn't a plain 4-digit year / 1-2 digit month before it reaches the
+// outbound request URL or the on-disk file path (path traversal / SSRF).
+function parseYearMonth(params) {
+  const year = Number(params.year);
+  const month = Number(params.month);
+  if (
+    !/^\d{4}$/.test(String(params.year)) ||
+    !/^\d{1,2}$/.test(String(params.month)) ||
+    month < 1 ||
+    month > 12
+  ) {
+    throw new Error(`invalid year/month: ${params.year}/${params.month}`);
+  }
+  return { year, month };
+}
+
 // Mirrors fetchpdf.js's fetch-on-demand pattern: the attachment bytes are
 // never passed through the emailer's request body/params, they're fetched
 // straight from the api service's existing GET /accounting/:year/:month/
@@ -15,14 +33,15 @@ export default function (
   params,
   filename
 ) {
+  const { year, month } = parseYearMonth(params);
   const { API_URL, TEMPORARY_DIRECTORY } =
     Service.getInstance().envConfig.getValues();
-  const uri = `${API_URL}/accounting/${params.year}/${params.month}/datev`;
+  const uri = `${API_URL}/accounting/${year}/${month}/datev`;
   const fileDir = path.join(TEMPORARY_DIRECTORY, 'datev_export');
   if (!fs.existsSync(fileDir)) {
     fs.mkdirSync(fileDir);
   }
-  const filePath = path.join(fileDir, filename);
+  const filePath = path.join(fileDir, path.basename(filename));
   const wStream = fs.createWriteStream(filePath);
 
   return axios
