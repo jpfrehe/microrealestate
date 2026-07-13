@@ -36,6 +36,8 @@ const RealmSchema = new mongoose.Schema<CollectionTypes.Realm>({
     name: String,
     iban: String
   },
+  // UC4: optional recipient for the "send DATEV export" action
+  taxAdvisorEmail: String,
   contacts: [
     {
       name: String,

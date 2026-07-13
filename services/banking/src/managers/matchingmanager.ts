@@ -13,16 +13,21 @@ import moment from 'moment';
 // Called after a bank sync (see bankaccountmanager.syncAccount) and can also
 // be triggered on demand via POST /banking/transactions/match.
 export async function runMatchingForRealm(realmId: string): Promise<void> {
-  const [unmatchedTransactions, tenants] = await Promise.all([
-    Collections.Transaction.find({ realmId, matchStatus: 'unmatched' }).lean(),
-    Collections.Tenant.find({ realmId }).lean()
-  ]);
+  const [unmatchedTransactions, tenants, knownPayerIbansByTenant] =
+    await Promise.all([
+      Collections.Transaction.find({
+        realmId,
+        matchStatus: 'unmatched'
+      }).lean(),
+      Collections.Tenant.find({ realmId }).lean(),
+      buildKnownPayerIbansByTenant(realmId)
+    ]);
 
   if (!unmatchedTransactions.length) {
     return;
   }
 
-  const openClaims = buildOpenRentClaims(tenants);
+  const openClaims = buildOpenRentClaims(tenants, knownPayerIbansByTenant);
 
   // one bulk round-trip instead of one save() per transaction
   await Collections.Transaction.bulkWrite(
@@ -30,7 +35,8 @@ export async function runMatchingForRealm(realmId: string): Promise<void> {
       const candidates = findMatchCandidates(
         {
           amount: transaction.amount,
-          remittanceInformation: transaction.remittanceInformation
+          remittanceInformation: transaction.remittanceInformation,
+          counterpartyIban: transaction.counterpartyIban
         },
         openClaims
       );
@@ -47,6 +53,35 @@ export async function runMatchingForRealm(realmId: string): Promise<void> {
       };
     })
   );
+}
+
+// Every distinct payer IBAN seen on this realm's previously confirmed
+// matches, grouped by tenant - lets findMatchCandidates recognize a
+// recurring payer even when a transaction's remittance text is unhelpful.
+async function buildKnownPayerIbansByTenant(
+  realmId: string
+): Promise<Record<string, string[]>> {
+  const rows = await Collections.Transaction.aggregate<{
+    _id: string;
+    ibans: string[];
+  }>([
+    {
+      $match: {
+        realmId,
+        matchStatus: 'matched',
+        matchedTenantId: { $ne: null },
+        counterpartyIban: { $nin: [null, ''] }
+      }
+    },
+    {
+      $group: {
+        _id: '$matchedTenantId',
+        ibans: { $addToSet: '$counterpartyIban' }
+      }
+    }
+  ]);
+
+  return Object.fromEntries(rows.map((row) => [row._id, row.ibans]));
 }
 
 export async function matchTransactions(

@@ -1,6 +1,7 @@
 /* eslint-env node, mocha */
 import {
   buildDatevBookings,
+  buildExtfHeader,
   classifyExpenseAccount,
   resolveCostCenter
 } from '../../managers/datevexport.js';
@@ -246,5 +247,111 @@ describe('buildDatevBookings', () => {
 
     expect(bookings).toHaveLength(2);
     expect(unclassified).toHaveLength(2);
+  });
+
+  it('prefers the resolved document name over the raw documentId for an expense reference', () => {
+    const { bookings } = buildDatevBookings({
+      payments: [],
+      expenses: [
+        {
+          category: 'maintenance',
+          propertyId: 'prop-1',
+          amount: 100,
+          date: new Date('2026-07-05T00:00:00Z'),
+          documentId: 'doc-1',
+          documentName: 'Rechnung_Heizung.pdf'
+        }
+      ],
+      properties
+    });
+
+    expect(bookings[0].documentReference).toBe('Rechnung_Heizung.pdf');
+  });
+
+  it('falls back to the raw documentId when no document name was resolved', () => {
+    const { bookings } = buildDatevBookings({
+      payments: [],
+      expenses: [
+        {
+          category: 'maintenance',
+          propertyId: 'prop-1',
+          amount: 100,
+          date: new Date('2026-07-05T00:00:00Z'),
+          documentId: 'doc-1'
+        }
+      ],
+      properties
+    });
+
+    expect(bookings[0].documentReference).toBe('doc-1');
+  });
+
+  it('posts every booking against the bank/clearing offset account', () => {
+    const { bookings } = buildDatevBookings({
+      payments: [
+        {
+          tenantName: 'Max Mustermann',
+          propertyIds: ['prop-1'],
+          amount: 950,
+          date: new Date('2026-07-01T00:00:00Z')
+        }
+      ],
+      expenses: [
+        {
+          category: 'maintenance',
+          propertyId: 'prop-1',
+          amount: 100,
+          date: new Date('2026-07-05T00:00:00Z')
+        }
+      ],
+      properties
+    });
+
+    expect(bookings.every((b) => b.offsetAccount === '1200')).toBe(true);
+  });
+});
+
+describe('buildExtfHeader', () => {
+  const createdAt = new Date('2026-08-03T10:15:30Z');
+  const periodStart = new Date('2026-07-01T00:00:00Z');
+  const periodEnd = new Date('2026-07-31T00:00:00Z');
+
+  it('starts with the EXTF format identifier and Buchungsstapel category', () => {
+    const header = buildExtfHeader({ createdAt, periodStart, periodEnd });
+    const fields = header.split(';');
+
+    expect(fields[0]).toBe('EXTF');
+    expect(fields[2]).toBe('21');
+    expect(fields[3]).toBe('Buchungsstapel');
+  });
+
+  it('encodes the period bounds and fiscal year start as yyyyMMdd', () => {
+    const header = buildExtfHeader({ createdAt, periodStart, periodEnd });
+    const fields = header.split(';');
+
+    expect(fields[12]).toBe('20260101'); // fiscal year start
+    expect(fields[14]).toBe('20260701'); // from
+    expect(fields[15]).toBe('20260731'); // to
+  });
+
+  it('uses the given consultant/client numbers, defaulting when omitted', () => {
+    const withDefaults = buildExtfHeader({ createdAt, periodStart, periodEnd });
+    const withCustom = buildExtfHeader({
+      createdAt,
+      periodStart,
+      periodEnd,
+      consultantNumber: 42,
+      clientNumber: 7
+    });
+
+    expect(withDefaults.split(';')[10]).toBe('1001');
+    expect(withDefaults.split(';')[11]).toBe('1');
+    expect(withCustom.split(';')[10]).toBe('42');
+    expect(withCustom.split(';')[11]).toBe('7');
+  });
+
+  it('is a single semicolon-delimited line with no embedded newlines', () => {
+    const header = buildExtfHeader({ createdAt, periodStart, periodEnd });
+    expect(header).not.toMatch(/\n/);
   });
 });

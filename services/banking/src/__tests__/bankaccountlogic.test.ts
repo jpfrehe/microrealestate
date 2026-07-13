@@ -1,5 +1,6 @@
 import {
   isConsentExpired,
+  needsConsentReminder,
   nextStatusAfterSyncAttempt,
   parseConnectionToken,
   serializeConnectionToken,
@@ -314,5 +315,89 @@ describe('serializeConnectionToken / parseConnectionToken', () => {
     expect(() =>
       parseConnectionToken('not-a-real-token', (text) => text)
     ).toThrow();
+  });
+});
+
+describe('needsConsentReminder', () => {
+  const now = new Date('2026-07-12T00:00:00Z');
+
+  it('is false for a connected account whose consent is not close to expiry', () => {
+    expect(
+      needsConsentReminder(
+        {
+          status: 'connected',
+          consentExpiryDate: new Date('2026-10-10T00:00:00Z')
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('is true for a connected account whose consent expires within the reminder window', () => {
+    expect(
+      needsConsentReminder(
+        {
+          status: 'connected',
+          consentExpiryDate: new Date('2026-07-15T00:00:00Z')
+        },
+        now
+      )
+    ).toBe(true);
+  });
+
+  it('respects a custom reminder window', () => {
+    const consentExpiryDate = new Date('2026-07-20T00:00:00Z'); // 8 days out
+    expect(
+      needsConsentReminder({ status: 'connected', consentExpiryDate }, now, 7)
+    ).toBe(false);
+    expect(
+      needsConsentReminder({ status: 'connected', consentExpiryDate }, now, 10)
+    ).toBe(true);
+  });
+
+  it('is true once the account already flipped to reauth_required', () => {
+    expect(
+      needsConsentReminder(
+        {
+          status: 'reauth_required',
+          consentExpiryDate: new Date('2026-01-01T00:00:00Z')
+        },
+        now
+      )
+    ).toBe(true);
+  });
+
+  it('is false once a reminder was already sent, even if still expiring/expired', () => {
+    expect(
+      needsConsentReminder(
+        {
+          status: 'reauth_required',
+          consentExpiryDate: new Date('2026-01-01T00:00:00Z'),
+          reauthReminderSentDate: new Date('2026-07-01T00:00:00Z')
+        },
+        now
+      )
+    ).toBe(false);
+  });
+
+  it('is false for pending/disconnected accounts', () => {
+    expect(
+      needsConsentReminder(
+        {
+          status: 'pending',
+          consentExpiryDate: new Date('2026-07-13T00:00:00Z')
+        },
+        now
+      )
+    ).toBe(false);
+    expect(
+      needsConsentReminder(
+        {
+          status: 'disconnected',
+          consentExpiryDate: new Date('2026-07-13T00:00:00Z')
+        },
+        now
+      )
+    ).toBe(false);
   });
 });

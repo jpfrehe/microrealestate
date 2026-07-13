@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+  <%- include('../__content_parts/html/htmlhead.ejs') %>
+  <body>
+    <div class="email-body">
+      <div class="email-container">
+        <div class="bar"></div>
+        <div class="content">
+          <div class="header">
+            <div class="logo"><%-landlord.name%></div>
+          </div>
+
+          <p><%- include('../__content_parts/html/greetings.ejs') %></p>
+
+          <% if (bankAccount.status === 'reauth_required') { -%>
+          <p>
+            <%- _.t('The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.', { bankName: bankAccount.bankName, iban: bankAccount.iban }) %>
+          </p>
+          <% } else { -%>
+          <p>
+            <%- _.t('The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.', { bankName: bankAccount.bankName, iban: bankAccount.iban, date: bankAccount.consentExpiryDate }) %>
+          </p>
+          <% } -%>
+
+          <p>
+            <%- _.t('Please reconnect this account from the Bank accounts section of your organization settings.') %>
+          </p>
+
+          <%- include('../__content_parts/html/signature.ejs') %>
+        </div>
+      </div>
+      <%- include('../__content_parts/html/landlordcontact.ejs') %>
+    </div>
+  </body>
+</html>

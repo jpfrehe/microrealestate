@@ -154,6 +154,86 @@ describe('findMatchCandidates', () => {
     );
     expect(candidates).toEqual([]);
   });
+
+  describe('IBAN signal', () => {
+    const claimWithKnownIban: OpenRentClaim = {
+      ...musterstrasseClaim,
+      knownPayerIbans: ['DE12 5001 0517 0648 4898 90']
+    };
+
+    it('surfaces a candidate purely from a known payer IBAN, even with unhelpful remittance text', () => {
+      const candidates = findMatchCandidates(
+        {
+          amount: 950,
+          remittanceInformation: 'Dauerauftrag 07/2026',
+          counterpartyIban: 'DE12500105170648489890'
+        },
+        [claimWithKnownIban]
+      );
+
+      expect(candidates).toHaveLength(1);
+      expect(candidates[0].tenantId).toBe('tenant-1');
+      expect(candidates[0].reason).toMatch(/previously confirmed payment/);
+    });
+
+    it('is insensitive to IBAN whitespace/casing when comparing', () => {
+      const candidates = findMatchCandidates(
+        {
+          amount: 950,
+          remittanceInformation: 'Dauerauftrag 07/2026',
+          counterpartyIban: 'de12 5001 0517 0648 4898 90'
+        },
+        [claimWithKnownIban]
+      );
+
+      expect(candidates).toHaveLength(1);
+    });
+
+    it('boosts confidence on top of text+amount when the IBAN also matches', () => {
+      const withoutIban = findMatchCandidates(
+        {
+          amount: 950,
+          remittanceInformation: 'Miete Juli Musterstrasse 12 App 3B'
+        },
+        [musterstrasseClaim]
+      )[0];
+      const withIban = findMatchCandidates(
+        {
+          amount: 950,
+          remittanceInformation: 'Miete Juli Musterstrasse 12 App 3B',
+          counterpartyIban: 'DE12500105170648489890'
+        },
+        [claimWithKnownIban]
+      )[0];
+
+      expect(withoutIban.confidence).toBe(1);
+      // already at the 0-1 ceiling from text+amount alone - the bonus must be capped, not overflow
+      expect(withIban.confidence).toBe(1);
+    });
+
+    it('does not surface a candidate for an IBAN that does not match any known payer', () => {
+      const candidates = findMatchCandidates(
+        {
+          amount: 950,
+          remittanceInformation: 'Dauerauftrag 07/2026',
+          counterpartyIban: 'DE00000000000000000000'
+        },
+        [claimWithKnownIban]
+      );
+
+      expect(candidates).toEqual([]);
+    });
+
+    it('leaves confidence unchanged when no IBAN data is available at all (backward compatible)', () => {
+      const candidates = findMatchCandidates(
+        { amount: 400, remittanceInformation: 'Teilzahlung Musterstrasse 12' },
+        [musterstrasseClaim]
+      );
+
+      // textScore 1 * 0.5 + amountScore 0.5 (partial payment) * 0.5, no IBAN bonus
+      expect(candidates[0].confidence).toBe(0.75);
+    });
+  });
 });
 
 describe('determineMatchStatus', () => {
@@ -285,5 +365,42 @@ describe('buildOpenRentClaims', () => {
     ]);
 
     expect(claims.map((c) => c.tenantId)).toEqual(['tenant-1', 'tenant-2']);
+  });
+
+  it('attaches known payer IBANs per tenant when provided', () => {
+    const claims = buildOpenRentClaims(
+      [
+        {
+          _id: 'tenant-1',
+          name: 'Tenant A',
+          rents: [{ term: 2026070100, total: { grandTotal: 500, payment: 0 } }]
+        },
+        {
+          _id: 'tenant-2',
+          name: 'Tenant B',
+          rents: [{ term: 2026070100, total: { grandTotal: 700, payment: 0 } }]
+        }
+      ],
+      { 'tenant-1': ['DE12500105170648489890'] }
+    );
+
+    expect(
+      claims.find((c) => c.tenantId === 'tenant-1')?.knownPayerIbans
+    ).toEqual(['DE12500105170648489890']);
+    expect(
+      claims.find((c) => c.tenantId === 'tenant-2')?.knownPayerIbans
+    ).toEqual([]);
+  });
+
+  it('defaults every claim to no known payer IBANs when the map is omitted', () => {
+    const claims = buildOpenRentClaims([
+      {
+        _id: 'tenant-1',
+        name: 'Tenant A',
+        rents: [{ term: 2026070100, total: { grandTotal: 500, payment: 0 } }]
+      }
+    ]);
+
+    expect(claims[0].knownPayerIbans).toEqual([]);
   });
 });

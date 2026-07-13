@@ -125,6 +125,7 @@ services:
       - CIPHER_KEY
       - CIPHER_IV_KEY
       - PDFGENERATOR_URL
+      - API_URL
       - GMAIL_EMAIL
       - GMAIL_APP_PASSWORD
       - MAILGUN_API_KEY
@@ -201,6 +202,8 @@ services:
       - MONGO_URL
       - API_URL
       - LANDLORD_APP_URL
+      - EMAILER_URL
+      - BANKING_SYNC_INTERVAL_MS
       - ACCESS_TOKEN_SECRET=$AUTHENTICATOR_ACCESS_TOKEN_SECRET
       - CIPHER_KEY
       - CIPHER_IV_KEY
@@ -211,6 +214,7 @@ services:
     depends_on:
       - mongo
       - api
+      - emailer
   ###############################################################################
   # Landlord frontend
   ###############################################################################

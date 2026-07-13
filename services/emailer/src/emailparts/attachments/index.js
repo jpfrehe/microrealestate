@@ -1,3 +1,4 @@
+import fetchDatevCsv from './fetchdatevcsv.js';
 import fetchPDF from './fetchpdf.js';
 import fs from 'fs';
 import i18n from 'i18n';
@@ -10,8 +11,20 @@ export async function build(
   templateName,
   recordId,
   params,
-  { tenant }
+  emailData
 ) {
+  if (templateName === 'datev_export') {
+    const filename = `datev-${params.year}-${String(params.month).padStart(2, '0')}.csv`;
+    const filePath = await fetchDatevCsv(
+      authorizationHeader,
+      organizationId,
+      recordId,
+      params,
+      filename
+    );
+    return { attachment: [{ filename, data: fs.readFileSync(filePath) }] };
+  }
+
   if (
     ![
       'invoice',
@@ -25,6 +38,7 @@ export async function build(
     };
   }
 
+  const { tenant } = emailData;
   i18n.setLocale(locale);
   const billingRef = `${moment(params.term, 'YYYYMMDDHH')
     .locale(locale)

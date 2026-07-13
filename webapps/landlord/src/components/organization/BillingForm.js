@@ -35,6 +35,7 @@ export default function BillingForm({ organization }) {
     vatNumber: organization.isCompany ? Yup.string().required() : Yup.string(),
     bankName: organization.isCompany ? Yup.string().required() : Yup.string(),
     iban: organization.isCompany ? Yup.string().required() : Yup.string(),
+    taxAdvisorEmail: Yup.string().email(),
     contact: Yup.string().required(),
     email: Yup.string().email().required(),
     phone1: Yup.string().required(),
@@ -54,6 +55,7 @@ export default function BillingForm({ organization }) {
       vatNumber: organization.companyInfo?.vatNumber || '',
       bankName: organization.bankInfo?.name || '',
       iban: organization.bankInfo?.iban || '',
+      taxAdvisorEmail: organization.taxAdvisorEmail || '',
       contact: organization.contacts?.[0]?.name || '',
       email: organization.contacts?.[0]?.email || '',
       phone1: organization.contacts?.[0]?.phone1 || '',
@@ -81,6 +83,7 @@ export default function BillingForm({ organization }) {
           name: billing.bankName,
           iban: billing.iban
         },
+        taxAdvisorEmail: billing.taxAdvisorEmail,
         contacts: [
           {
             name: billing.contact,
@@ -111,6 +114,10 @@ export default function BillingForm({ organization }) {
               )}
               <TextField label={t('Bank name')} name="bankName" />
               <TextField label={t('IBAN')} name="iban" />
+              <TextField
+                label={t('Tax advisor email')}
+                name="taxAdvisorEmail"
+              />
             </Section>
             <Section label={t('Contact')}>
               <ContactField />

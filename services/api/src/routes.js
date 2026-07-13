@@ -120,6 +120,10 @@ export default function routes() {
     '/accounting/:year/:month/datev',
     Middlewares.asyncWrapper(accountingManager.datev.csv)
   );
+  router.post(
+    '/accounting/:year/:month/datev/send',
+    Middlewares.asyncWrapper(accountingManager.datev.send)
+  );
 
   const emailRouter = express.Router();
   emailRouter.post('/', Middlewares.asyncWrapper(emailManager.send));
