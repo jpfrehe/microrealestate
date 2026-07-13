@@ -252,6 +252,12 @@ export async function syncBankAccount(
   await runMatchingForRealm(String(bankAccount.realmId));
 }
 
+// Landlord-triggered "sync now" hits the aggregator's API and writes to the
+// DB (see syncBankAccount above); this caps how often that can be repeated
+// per account, using the persisted lastSyncDate itself as the clock so it
+// holds even across multiple instances of this service (no in-memory state).
+const MIN_SYNC_INTERVAL_MS = 30 * 1000;
+
 export async function syncAccount(req: Express.Request, res: Express.Response) {
   const request = req as ServiceRequest;
   const bankAccount = await Collections.BankAccount.findOne({
@@ -261,6 +267,13 @@ export async function syncAccount(req: Express.Request, res: Express.Response) {
 
   if (!bankAccount) {
     return res.sendStatus(404);
+  }
+
+  if (
+    bankAccount.lastSyncDate &&
+    Date.now() - bankAccount.lastSyncDate.getTime() < MIN_SYNC_INTERVAL_MS
+  ) {
+    return res.status(429).json({ message: 'sync requested too recently' });
   }
 
   await syncBankAccount(bankAccount);

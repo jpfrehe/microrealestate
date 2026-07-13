@@ -10,7 +10,8 @@ export async function fetchOneTenant(tenantId: string): Promise<Lease | null> {
   if (getServerEnv('DEMO_MODE') === 'true') {
     data = Mocks.getOneTenant;
   } else {
-    const response = await getApiFetcher().get<TenantAPI.GetOneTenant.Response>(
+    const apiFetcher = await getApiFetcher();
+    const response = await apiFetcher.get<TenantAPI.GetOneTenant.Response>(
       `/tenantapi/tenant/${tenantId}`
     );
     data = response.data;
@@ -33,8 +34,9 @@ export async function fetchAllTenants(): Promise<Lease[]> {
   if (getServerEnv('DEMO_MODE') === 'true') {
     data = Mocks.getAllTenants;
   } else {
+    const apiFetcher = await getApiFetcher();
     const response =
-      await getApiFetcher().get<TenantAPI.GetAllTenants.Response>(
+      await apiFetcher.get<TenantAPI.GetAllTenants.Response>(
         `/tenantapi/tenants`
       );
     data = response.data;

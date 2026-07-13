@@ -600,6 +600,18 @@ async function datevSend(req, res) {
   const realm = req.realm;
   const { year, month } = req.params;
 
+  // year/month end up in a file path and an outbound request URL once the
+  // emailer fetches this export (see fetchdatevcsv.js) - reject anything
+  // that isn't a plain calendar year/month before it leaves this request.
+  if (
+    !/^\d{4}$/.test(year) ||
+    !/^\d{1,2}$/.test(month) ||
+    Number(month) < 1 ||
+    Number(month) > 12
+  ) {
+    return res.status(400).json({ message: 'invalid year/month' });
+  }
+
   if (!realm.taxAdvisorEmail) {
     return res
       .status(422)
