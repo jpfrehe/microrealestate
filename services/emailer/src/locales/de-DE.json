@@ -60,5 +60,9 @@
   "We would be grateful if you could proceed to the payment of your rent debts in the following 10 days, otherwise we will engage an eviction procedure.": "Wir wuenschen Ihnen, dass Sie in den folgenden 10 Tagen Ihre Mietverbindlichkeiten bezahlen koennen. Ansonsten wird eine Raeumung eingeleitet.",
   "We would like to point out that our business agreements with your company are stated in a contract signed {{date}}.": "Wir wollen darauf hinweisen, dass unsere Geschaftsvereinbarungen mit Ihrer Firma im Vertrag vom {{date}} festgehalten sind.",
   "We would like to point out that our business agreements with you are stated in a contract signed {{date}}.": "Wir wollen darauf hinweisen, dass unsere Geschaftsvereinbarungen mit Ihnen im Vertrag vom {{date}} festgehalten sind.",
-  "Write your check to the order of {{name}} and send it to the following address:": "Schreiben Sie Ihre Miete an {{name}} und senden Sie sie an die folgende Adresse:"
+  "Write your check to the order of {{name}} and send it to the following address:": "Schreiben Sie Ihre Miete an {{name}} und senden Sie sie an die folgende Adresse:",
+  "{{appName}} Bank account re-authorization required": "{{appName}} Re-Autorisierung des Bankkontos erforderlich",
+  "The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.": "Die Bankverbindung zu {{bankName}} ({{iban}}) erfordert eine Re-Autorisierung - Transaktionen werden nicht mehr automatisch importiert.",
+  "The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.": "Die Bankverbindung zu {{bankName}} ({{iban}}) läuft am {{date}} ab und muss re-autorisiert werden, damit Transaktionen weiterhin automatisch importiert werden.",
+  "Please reconnect this account from the Bank accounts section of your organization settings.": "Bitte verbinden Sie dieses Konto erneut über den Bereich Bankkonten in Ihren Organisationseinstellungen."
 }

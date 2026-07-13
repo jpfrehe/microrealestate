@@ -1,5 +1,6 @@
 import * as Express from 'express';
 import { Collections, Crypto, Service } from '@microrealestate/common';
+import { CollectionTypes, ServiceRequest } from '@microrealestate/types';
 import {
   nextStatusAfterSyncAttempt,
   stripSecrets,
@@ -8,8 +9,8 @@ import {
 } from './bankaccountlogic.js';
 import { AggregatorAdapter } from '../aggregator/adapter.js';
 import MockAggregatorAdapter from '../aggregator/mockadapter.js';
+import mongoose from 'mongoose';
 import { runMatchingForRealm } from './matchingmanager.js';
-import { ServiceRequest } from '@microrealestate/types';
 
 // Until a real XS2A provider is contracted (see system.md's provider
 // comparison), the mock adapter lets the connect/sync/matching flow run
@@ -95,18 +96,17 @@ export async function listAccounts(
   res.json(bankAccounts.map(stripSecrets));
 }
 
-export async function syncAccount(req: Express.Request, res: Express.Response) {
-  const request = req as ServiceRequest;
-  const bankAccount = await Collections.BankAccount.findOne({
-    _id: req.params.id,
-    realmId: request.realm?._id
-  });
+// matches what both Collections.BankAccount.findOne and .find(...) resolve
+// each document to, so syncBankAccount works with either call site
+export type BankAccountDoc =
+  mongoose.HydratedDocument<CollectionTypes.BankAccount>;
 
-  if (!bankAccount) {
-    return res.sendStatus(404);
-  }
-
-  const now = new Date();
+// Shared by the on-demand POST /:id/sync route and the scheduled sync job
+// (syncjob.ts) - mutates and persists the given bank account in place.
+export async function syncBankAccount(
+  bankAccount: BankAccountDoc,
+  now: Date = new Date()
+): Promise<void> {
   const status = nextStatusAfterSyncAttempt(
     bankAccount.status,
     bankAccount.consentExpiryDate,
@@ -116,7 +116,7 @@ export async function syncAccount(req: Express.Request, res: Express.Response) {
   if (status === 'reauth_required') {
     bankAccount.status = status;
     await bankAccount.save();
-    return res.json(stripSecrets(bankAccount.toObject()));
+    return;
   }
 
   const accessToken = Crypto.decrypt(bankAccount.encryptedAccessToken);
@@ -150,6 +150,20 @@ export async function syncAccount(req: Express.Request, res: Express.Response) {
 
   // surface matching suggestions (UC2) as soon as new transactions land
   await runMatchingForRealm(String(bankAccount.realmId));
+}
+
+export async function syncAccount(req: Express.Request, res: Express.Response) {
+  const request = req as ServiceRequest;
+  const bankAccount = await Collections.BankAccount.findOne({
+    _id: req.params.id,
+    realmId: request.realm?._id
+  });
+
+  if (!bankAccount) {
+    return res.sendStatus(404);
+  }
+
+  await syncBankAccount(bankAccount);
 
   res.json(stripSecrets(bankAccount.toObject()));
 }

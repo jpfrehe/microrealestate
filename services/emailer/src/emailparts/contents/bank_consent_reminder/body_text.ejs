@@ -1,0 +1,11 @@
+<%- include('../__content_parts/text/greetings.ejs') %>
+
+<% if (bankAccount.status === 'reauth_required') { -%>
+<%- _.t('The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.', { bankName: bankAccount.bankName, iban: bankAccount.iban }) %>
+<% } else { -%>
+<%- _.t('The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.', { bankName: bankAccount.bankName, iban: bankAccount.iban, date: bankAccount.consentExpiryDate }) %>
+<% } -%>
+
+<%- _.t('Please reconnect this account from the Bank accounts section of your organization settings.') %>
+
+<%- include('../__content_parts/text/signature.ejs') %>

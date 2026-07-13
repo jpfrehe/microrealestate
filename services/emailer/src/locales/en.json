@@ -60,5 +60,9 @@
   "We would be grateful if you could proceed to the payment of your rent debts in the following 10 days, otherwise we will engage an eviction procedure.": "We would be grateful if you could proceed to the payment of your rent debts in the following 10 days, otherwise we will engage an eviction procedure.",
   "We would like to point out that our business agreements with your company are stated in a contract signed {{date}}.": "We would like to point out that our business agreements with your company are stated in a contract signed {{date}}.",
   "We would like to point out that our business agreements with you are stated in a contract signed {{date}}.": "We would like to point out that our business agreements with you are stated in a contract signed {{date}}.",
-  "Write your check to the order of {{name}} and send it to the following address:": "Write your check to the order of {{name}} and send it to the following address:"
+  "Write your check to the order of {{name}} and send it to the following address:": "Write your check to the order of {{name}} and send it to the following address:",
+  "{{appName}} Bank account re-authorization required": "{{appName}} Bank account re-authorization required",
+  "The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.": "The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.",
+  "The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.": "The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.",
+  "Please reconnect this account from the Bank accounts section of your organization settings.": "Please reconnect this account from the Bank accounts section of your organization settings."
 }

@@ -263,6 +263,7 @@ services:
       MONGO_URL: ${MONGO_URL:-mongodb://mongo/mredb}
       API_URL: http://api:8200/api/v2
       LANDLORD_APP_URL: ${APP_PROTOCOL:-http}://${APP_DOMAIN:-localhost}${APP_PORT:+:}${APP_PORT}/landlord
+      EMAILER_URL: http://emailer:8083/emailer
       ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-access_token_secret} # Change secret in production
       CIPHER_KEY: ${CIPHER_KEY:-cipher_key} # Change key in production
       CIPHER_IV_KEY: ${CIPHER_IV_KEY:-cipher_iv_key} # Change key in production
