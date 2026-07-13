@@ -5,6 +5,7 @@ import Accounting from './Accounting';
 import AppHistory from './AppHistory';
 import Dashboard from './Dashboard';
 import Document from './Document';
+import Expense from './Expense';
 import Lease from './Lease';
 import moment from 'moment';
 import Organization from './Organization';
@@ -27,6 +28,7 @@ export default class Store {
     this.document = new Document();
     this.dashboard = new Dashboard();
     this.accounting = new Accounting();
+    this.expense = new Expense();
 
     makeObservable(this, {
       user: observable,
@@ -39,6 +41,7 @@ export default class Store {
       document: observable,
       dashboard: observable,
       accounting: observable,
+      expense: observable,
       appHistory: observable
     });
   }

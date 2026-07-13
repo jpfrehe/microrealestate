@@ -9,6 +9,7 @@ import { useCallback, useContext, useState } from 'react';
 import { Card } from '../../../components/ui/card';
 import ConfirmDialog from '../../../components/ConfirmDialog';
 import { DashboardCard } from '../../../components/dashboard/DashboardCard';
+import ExpenseList from '../../../components/expenses/ExpenseList';
 import Map from '../../../components/Map';
 import moment from 'moment';
 import NumberFormat from '../../../components/NumberFormat';
@@ -86,6 +87,7 @@ async function fetchData(store, router) {
   store.property.setSelected(
     store.property.items.find(({ _id }) => _id === router.query.id)
   );
+  await store.expense.fetch(router.query.id);
   return results;
 }
 
@@ -194,15 +196,32 @@ function Property() {
     >
       <>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Tabs defaultValue="property" className="md:col-span-2">
+          <Tabs
+            defaultValue={
+              router.query.tab === 'expenses' ? 'expenses' : 'property'
+            }
+            className="md:col-span-2"
+          >
             <TabsList className="flex justify-start overflow-x-auto overflow-y-hidden">
               <TabsTrigger value="property" className="w-1/2">
                 {t('Property')}
+              </TabsTrigger>
+              <TabsTrigger
+                value="expenses"
+                className="w-1/2"
+                disabled={!store.property.selected._id}
+              >
+                {t('Expenses')}
               </TabsTrigger>
             </TabsList>
             <TabsContent value="property">
               <Card className="p-6">
                 <PropertyForm onSubmit={onSubmit} />
+              </Card>
+            </TabsContent>
+            <TabsContent value="expenses">
+              <Card className="p-6">
+                <ExpenseList propertyId={store.property.selected._id} />
               </Card>
             </TabsContent>
           </Tabs>

@@ -2,6 +2,27 @@ import { Collections } from '@microrealestate/common';
 import { computeCashflow } from './cashflow.js';
 import moment from 'moment';
 
+// UC3: the cashflow breakdown accepts an independent period selector
+// (month/quarter/year, optionally anchored on a given reference date) while
+// every other dashboard bucket below keeps its own fixed month/year window.
+const CASHFLOW_PERIODS = ['month', 'quarter', 'year'];
+
+function cashflowPeriodBounds(req, now) {
+  const period = CASHFLOW_PERIODS.includes(req.query.cashflowPeriod)
+    ? req.query.cashflowPeriod
+    : 'month';
+  const anchor =
+    req.query.cashflowDate && moment(req.query.cashflowDate).isValid()
+      ? moment(req.query.cashflowDate)
+      : moment(now);
+
+  return {
+    period,
+    start: moment(anchor).startOf(period),
+    end: moment(anchor).endOf(period)
+  };
+}
+
 export async function all(req, res) {
   const now = moment();
   const beginOfTheMonth = moment(now).startOf('month');
@@ -163,20 +184,38 @@ export async function all(req, res) {
       moment(r1.month, 'MMYYYY').isBefore(moment(r2.month, 'MMYYYY')) ? -1 : 1
     );
 
-  // cashflow of the current month, per property and for the whole portfolio
-  // (UC3 - falls back to Soll/Ist rent data alone when no expense was
-  // recorded yet and no bank account is connected, see useCases.md UC3)
-  const allExpenses = await Collections.Expense.find({
-    realmId: req.headers.organizationid,
-    date: { $gte: beginOfTheMonth.toDate(), $lte: endOfTheMonth.toDate() }
-  }).lean();
-  const cashflow = computeCashflow({
-    properties: allProperties,
-    tenants: allTenants,
-    expenses: allExpenses,
-    startTerm: Number(beginOfTheMonth.format('YYYYMMDDHH')),
-    endTerm: Number(endOfTheMonth.format('YYYYMMDDHH'))
-  });
+  // cashflow of the selected period (default: current month), per property
+  // and for the whole portfolio (UC3 - falls back to Soll/Ist rent data
+  // alone when no expense was recorded yet and no bank account is
+  // connected, see useCases.md UC3)
+  const cashflowBounds = cashflowPeriodBounds(req, now);
+  const [allExpenses, connectedBankAccountCount] = await Promise.all([
+    Collections.Expense.find({
+      realmId: req.headers.organizationid,
+      date: {
+        $gte: cashflowBounds.start.toDate(),
+        $lte: cashflowBounds.end.toDate()
+      }
+    }).lean(),
+    Collections.BankAccount.countDocuments({
+      realmId: req.headers.organizationid,
+      status: { $ne: 'disconnected' }
+    })
+  ]);
+  const cashflow = {
+    period: cashflowBounds.period,
+    startDate: cashflowBounds.start.toISOString(),
+    endDate: cashflowBounds.end.toISOString(),
+    hasExpenseData: allExpenses.length > 0,
+    hasBankAccount: connectedBankAccountCount > 0,
+    ...computeCashflow({
+      properties: allProperties,
+      tenants: allTenants,
+      expenses: allExpenses,
+      startTerm: Number(cashflowBounds.start.format('YYYYMMDDHH')),
+      endTerm: Number(cashflowBounds.end.format('YYYYMMDDHH'))
+    })
+  };
 
   res.json({
     overview,

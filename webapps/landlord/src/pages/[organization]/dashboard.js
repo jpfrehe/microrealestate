@@ -5,8 +5,10 @@ import {
   fetchTenants,
   QueryKeys
 } from '../../utils/restcalls';
+import CashflowDashboard from '../../components/dashboard/CashflowDashboard';
 import GeneralFigures from '../../components/dashboard/GeneralFigures';
 import MonthFigures from '../../components/dashboard/MonthFigures';
+import { observer } from 'mobx-react-lite';
 import Page from '../../components/Page';
 import Shortcuts from '../../components/dashboard/Shortcuts';
 import { StoreContext } from '../../store';
@@ -19,7 +21,7 @@ import YearFigures from '../../components/dashboard/YearFigures';
 function Dashboard() {
   const store = useContext(StoreContext);
   const dashboardQuery = useQuery({
-    queryKey: [QueryKeys.DASHBOARD],
+    queryKey: [QueryKeys.DASHBOARD, store.dashboard.cashflowPeriod],
     queryFn: () => fetchDashboard(store),
     refetchOnMount: 'always',
     retry: 3
@@ -65,6 +67,7 @@ function Dashboard() {
             <MonthFigures className="md:col-span-3" />
             <GeneralFigures className="md:col-span-2" />
             <YearFigures className="md:col-span-5" />
+            <CashflowDashboard className="md:col-span-5" />
           </div>
         )}
       </div>
@@ -72,4 +75,4 @@ function Dashboard() {
   );
 }
 
-export default withAuthentication(Dashboard);
+export default withAuthentication(observer(Dashboard));
