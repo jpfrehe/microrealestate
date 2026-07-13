@@ -105,3 +105,10 @@ export async function fetchDatevPreview(store, year, month) {
   );
   return response.data;
 }
+
+export async function sendDatevExport(store, year, month) {
+  const response = await apiFetcher().post(
+    `/accounting/${year}/${month}/datev/send`
+  );
+  return response.data;
+}

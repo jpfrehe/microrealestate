@@ -57,6 +57,8 @@ export namespace CollectionTypes {
       name: string;
       iban: string;
     };
+    // UC4: optional recipient for the "send DATEV export" action
+    taxAdvisorEmail?: string;
     contacts: {
       name: string;
       email: string;
@@ -292,6 +294,9 @@ export namespace CollectionTypes {
     consentExpiryDate: Date;
     status: BankAccountStatus;
     lastSyncDate?: Date;
+    // set once a consent-expiry reminder email has been sent, so the
+    // scheduled sync job (UC1) never sends more than one per account
+    reauthReminderSentDate?: Date;
     createdDate: Date;
     updatedDate: Date;
   };

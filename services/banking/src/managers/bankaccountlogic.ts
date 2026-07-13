@@ -97,6 +97,36 @@ export function nextStatusAfterSyncAttempt(
     : 'connected';
 }
 
+const DEFAULT_REMINDER_WINDOW_DAYS = 7;
+
+// Decides whether the scheduled sync job (UC1) should send a landlord
+// reminder email for this account: either the consent already expired
+// (status flipped to 'reauth_required') or it's about to within the
+// reminder window. Fires at most once per account - the caller is
+// responsible for persisting reauthReminderSentDate once it does.
+export function needsConsentReminder(
+  bankAccount: Pick<
+    CollectionTypes.BankAccount,
+    'status' | 'consentExpiryDate' | 'reauthReminderSentDate'
+  >,
+  now: Date = new Date(),
+  reminderWindowDays: number = DEFAULT_REMINDER_WINDOW_DAYS
+): boolean {
+  if (bankAccount.reauthReminderSentDate) {
+    return false;
+  }
+  if (bankAccount.status === 'reauth_required') {
+    return true;
+  }
+  if (bankAccount.status !== 'connected') {
+    return false;
+  }
+
+  const msUntilExpiry =
+    new Date(bankAccount.consentExpiryDate).getTime() - now.getTime();
+  return msUntilExpiry <= reminderWindowDays * 24 * 60 * 60 * 1000;
+}
+
 export function toTransactionRecords(
   realmId: string,
   bankAccountId: string,

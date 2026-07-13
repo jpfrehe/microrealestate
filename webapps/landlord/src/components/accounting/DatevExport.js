@@ -1,10 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { fetchDatevPreview, QueryKeys } from '../../utils/restcalls';
+import {
+  fetchDatevPreview,
+  QueryKeys,
+  sendDatevExport
+} from '../../utils/restcalls';
+import { LuAlertTriangle, LuMail } from 'react-icons/lu';
 import { useCallback, useContext, useState } from 'react';
 import { Button } from '../ui/button';
 import { downloadDocument } from '../../utils/fetch';
 import { GrDocumentCsv } from 'react-icons/gr';
-import { LuAlertTriangle } from 'react-icons/lu';
 import moment from 'moment';
 import NumberFormat from '../NumberFormat';
 import { observer } from 'mobx-react-lite';
@@ -18,8 +22,10 @@ function DatevExport() {
   const { t } = useTranslation('common');
   const store = useContext(StoreContext);
   const [period, setPeriod] = useState(moment());
+  const [sending, setSending] = useState(false);
   const year = period.format('YYYY');
   const month = period.format('MM');
+  const taxAdvisorEmail = store.organization.selected?.taxAdvisorEmail;
 
   const { data, isLoading, isError } = useQuery({
     queryKey: [QueryKeys.DATEV_PREVIEW, year, month],
@@ -38,6 +44,18 @@ function DatevExport() {
       })
     });
   }, [month, period, t, year]);
+
+  const handleSend = useCallback(async () => {
+    setSending(true);
+    try {
+      await sendDatevExport(store, year, month);
+      toast.success(t('Export sent to the tax advisor'));
+    } catch (error) {
+      toast.error(t('Something went wrong'));
+    } finally {
+      setSending(false);
+    }
+  }, [month, store, t, year]);
 
   return (
     <Card>
@@ -80,14 +98,40 @@ function DatevExport() {
               </div>
             ) : null}
 
-            <Button
-              onClick={handleDownload}
-              disabled={!data.bookingsCount}
-              data-cy="downloadDatevExportButton"
-            >
-              <GrDocumentCsv className="size-4" />
-              {t('Download DATEV export')}
-            </Button>
+            {data.unreconciledTransactionCount ? (
+              <div className="flex items-center gap-2 rounded-md border border-warning bg-warning/10 p-3 text-sm font-medium text-warning">
+                <LuAlertTriangle className="size-4" />
+                {t(
+                  'This period still has {{count}} unresolved bank transactions - the export may be incomplete.',
+                  { count: data.unreconciledTransactionCount }
+                )}
+              </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleDownload}
+                disabled={!data.bookingsCount}
+                data-cy="downloadDatevExportButton"
+              >
+                <GrDocumentCsv className="size-4" />
+                {t('Download DATEV export')}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleSend}
+                disabled={!data.bookingsCount || !taxAdvisorEmail || sending}
+                data-cy="sendDatevExportButton"
+                title={
+                  taxAdvisorEmail
+                    ? undefined
+                    : t('No tax advisor email configured')
+                }
+              >
+                <LuMail className="size-4" />
+                {t('Send to tax advisor')}
+              </Button>
+            </div>
           </>
         ) : null}
       </CardContent>

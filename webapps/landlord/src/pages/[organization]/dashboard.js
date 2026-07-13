@@ -67,9 +67,14 @@ function Dashboard() {
     !propertiesQuery?.data?.length;
   // UC3 alternate flow: cashflow numbers are shown either way (they fall
   // back to rent due/paid alone), but nudge the landlord towards UC1 when
-  // there is no automated bank data feeding them yet.
+  // there is no automated bank data feeding them yet. A landlord whose only
+  // account is disconnected is in the same boat as one with none at all, so
+  // this checks for a live connection rather than just any account record.
   const hasNoBankAccount =
-    !bankAccountsQuery.isLoading && !bankAccountsQuery.data?.length;
+    !bankAccountsQuery.isLoading &&
+    !bankAccountsQuery.data?.some(
+      (bankAccount) => bankAccount.status !== 'disconnected'
+    );
 
   return (
     <Page loading={isLoading} dataCy="dashboardPage">

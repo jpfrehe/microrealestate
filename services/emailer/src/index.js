@@ -73,6 +73,7 @@ async function Main() {
           : null,
         PDFGENERATOR_URL:
           process.env.PDFGENERATOR_URL || 'http://localhost:8082/pdfgenerator',
+        API_URL: process.env.API_URL || 'http://localhost:8200/api/v2',
         TEMPORARY_DIRECTORY:
           process.env.TEMPORARY_DIRECTORY || path.join(root_dir, '/tmp')
       })
