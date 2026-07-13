@@ -1,6 +1,7 @@
 FROM node:20.17-alpine3.20 AS base
 
 FROM base AS build
+# hadolint ignore=DL3018
 RUN apk --no-cache add build-base python3
 RUN corepack enable && \
     corepack prepare yarn@3.3.0 --activate
@@ -34,6 +35,7 @@ RUN --mount=type=cache,id=node_modules,target=/root/.yarn YARN_CACHE_FOLDER=/roo
     yarn workspaces focus --production @microrealestate/pdfgenerator
 
 FROM base
+# hadolint ignore=DL3018
 RUN apk upgrade --no-cache --available \
     && apk add --no-cache \
       chromium-swiftshader \

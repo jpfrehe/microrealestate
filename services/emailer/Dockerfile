@@ -32,7 +32,7 @@ RUN --mount=type=cache,id=node_modules,target=/root/.yarn YARN_CACHE_FOLDER=/roo
 RUN mkdir -p ./services/emailer/tmp
 RUN chown -R 1000 ./services/emailer/tmp 
 
-FROM gcr.io/distroless/nodejs20-debian12
+FROM gcr.io/distroless/nodejs20-debian12@sha256:6fe218dbad37e979c7542e670d28d6e23d3f53d2929693bc9cdded8b622f339f
 ENV NODE_ENV production
 WORKDIR /usr/app
 COPY --from=deps /usr/app ./

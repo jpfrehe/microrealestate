@@ -1,6 +1,7 @@
 FROM node:20.17-alpine3.20 AS base
 
 FROM base AS build
+# hadolint ignore=DL3018
 RUN apk --no-cache add build-base python3
 RUN corepack enable && \
     corepack prepare yarn@3.3.0 --activate
@@ -34,6 +35,7 @@ RUN --mount=type=cache,id=node_modules,target=/root/.yarn YARN_CACHE_FOLDER=/roo
 
 FROM base
 ENV NODE_ENV production
+# hadolint ignore=DL3018
 RUN apk --no-cache add mongodb-tools
 WORKDIR /usr/app
 COPY --from=deps /usr/app ./
