@@ -283,8 +283,7 @@ describe('contract functionalities', () => {
     }).not.toThrow();
 
     expect(
-      contract.rents.find((rent) => rent.term === 2024120100).payments[0]
-        .amount
+      contract.rents.find((rent) => rent.term === 2024120100).payments[0].amount
     ).toEqual(200);
   });
 
