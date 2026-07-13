@@ -267,14 +267,18 @@ async function _updateByTerm(
       Number(term)
     ).catch(logger.error)) || {};
 
-  const savedOccupant = await Collections.Tenant.findOneAndUpdate(
+  await Collections.Tenant.updateOne(
     {
       _id: occupant._id,
       realmId: realm._id
     },
-    occupant,
-    { new: true }
-  ).lean();
+    { $set: { rents: occupant.rents } }
+  );
+
+  const savedOccupant = await Collections.Tenant.findOne({
+    _id: occupant._id,
+    realmId: realm._id
+  }).lean();
 
   const rent = savedOccupant.rents.filter(
     (rent) => rent.term === Number(term)
