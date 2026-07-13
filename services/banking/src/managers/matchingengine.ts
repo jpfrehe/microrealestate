@@ -14,11 +14,13 @@ export type OpenRentClaim = {
   term: number;
   openAmount: number; // amount still owed for this term (grandTotal - payment)
   searchTerms: string[]; // tenant name + property names, used for text matching
+  knownPayerIbans?: string[]; // IBANs seen on this tenant's previously confirmed matches
 };
 
 export type TransactionInput = {
   amount: number;
   remittanceInformation: string;
+  counterpartyIban?: string;
 };
 
 const AMOUNT_EPSILON = 0.01;
@@ -48,7 +50,9 @@ function computeTextScore(
 
   return searchTerms.some((term) => {
     const normalizedTerm = normalize(term);
-    return normalizedTerm.length > 0 && normalizedRemittance.includes(normalizedTerm);
+    return (
+      normalizedTerm.length > 0 && normalizedRemittance.includes(normalizedTerm)
+    );
   })
     ? 1
     : 0;
@@ -70,15 +74,41 @@ function computeAmountScore(
   return 0.5; // partial payment - weaker signal on its own
 }
 
+function normalizeIban(iban: string): string {
+  return iban.replace(/\s+/g, '').toUpperCase();
+}
+
+// Whether the transaction's payer IBAN was seen on one of this tenant's
+// previously confirmed matches - a strong signal for recurring rent
+// transfers, independent of how the remittance text happens to be worded.
+function computeIbanScore(
+  counterpartyIban: string | undefined,
+  knownPayerIbans: string[] | undefined
+): number {
+  if (!counterpartyIban || !knownPayerIbans?.length) {
+    return 0;
+  }
+  const normalized = normalizeIban(counterpartyIban);
+  return knownPayerIbans.some((iban) => normalizeIban(iban) === normalized)
+    ? 1
+    : 0;
+}
+
 function describeMatch(
   textScore: number,
   amountScore: number,
+  ibanScore: number,
   transactionAmount: number,
   openAmount: number
 ): string {
   const reasons: string[] = [];
   if (textScore > 0) {
     reasons.push('remittance information mentions the tenant or property');
+  }
+  if (ibanScore > 0) {
+    reasons.push(
+      'payer IBAN matches a previously confirmed payment from this tenant'
+    );
   }
   if (amountScore === 1) {
     reasons.push('amount matches the open balance exactly');
@@ -95,34 +125,47 @@ function describeMatch(
 }
 
 // Returns every plausible candidate, sorted by descending confidence. A
-// candidate is only surfaced when the remittance text references the tenant
-// or one of their properties - amount alone is too ambiguous across a
-// realm's tenants (this is also what makes an unreferenced bank transfer
-// come back empty, i.e. "unmatched", per UC2's alternate flow).
+// candidate is surfaced when the remittance text references the tenant or
+// one of their properties, OR the payer IBAN matches one of this tenant's
+// previously confirmed payments - amount alone is too ambiguous across a
+// realm's tenants (this is also what makes an unreferenced, never-before-
+// seen bank transfer come back empty, i.e. "unmatched", per UC2's alternate
+// flow). The IBAN signal is purely additive on top of the text+amount base
+// score, so a transaction with no IBAN data scores exactly as before.
 export function findMatchCandidates(
   transaction: TransactionInput,
   openClaims: OpenRentClaim[]
 ): CollectionTypes.TransactionMatchCandidate[] {
+  const IBAN_BONUS = 0.15;
+
   const scoredClaims = openClaims.map((claim) => ({
     claim,
     textScore: computeTextScore(
       transaction.remittanceInformation,
       claim.searchTerms
     ),
-    amountScore: computeAmountScore(transaction.amount, claim.openAmount)
+    amountScore: computeAmountScore(transaction.amount, claim.openAmount),
+    ibanScore: computeIbanScore(
+      transaction.counterpartyIban,
+      claim.knownPayerIbans
+    )
   }));
 
   return scoredClaims
-    .filter(({ textScore }) => textScore > 0)
-    .map(({ claim, textScore, amountScore }) => ({
+    .filter(({ textScore, ibanScore }) => textScore > 0 || ibanScore > 0)
+    .map(({ claim, textScore, amountScore, ibanScore }) => ({
       tenantId: claim.tenantId,
       tenantName: claim.tenantName,
       term: claim.term,
       openAmount: claim.openAmount,
-      confidence: textScore * 0.5 + amountScore * 0.5,
+      confidence: Math.min(
+        1,
+        textScore * 0.5 + amountScore * 0.5 + (ibanScore > 0 ? IBAN_BONUS : 0)
+      ),
       reason: describeMatch(
         textScore,
         amountScore,
+        ibanScore,
         transaction.amount,
         claim.openAmount
       )
@@ -138,6 +181,9 @@ export function determineMatchStatus(
 
 // Builds the open claims a matching pass should consider from raw tenant
 // data (as returned by Collections.Tenant.find(...).lean()).
+// knownPayerIbansByTenant is built by the caller from previously confirmed
+// matches (see matchingmanager.ts) - passed in rather than looked up here so
+// this stays pure and DB-independent.
 export function buildOpenRentClaims(
   tenants: {
     _id: string;
@@ -147,13 +193,15 @@ export function buildOpenRentClaims(
       term: number;
       total: { grandTotal: number; payment: number };
     }[];
-  }[]
+  }[],
+  knownPayerIbansByTenant: Record<string, string[]> = {}
 ): OpenRentClaim[] {
   return tenants.flatMap((tenant) => {
     const propertyNames = (tenant.properties || [])
       .map((p) => p.property?.name)
       .filter((name): name is string => Boolean(name));
     const searchTerms = [tenant.name, ...propertyNames];
+    const knownPayerIbans = knownPayerIbansByTenant[tenant._id] || [];
 
     return tenant.rents
       .filter((rent) => rent.total.payment < rent.total.grandTotal)
@@ -163,7 +211,8 @@ export function buildOpenRentClaims(
         term: rent.term,
         openAmount:
           Math.round((rent.total.grandTotal - rent.total.payment) * 100) / 100,
-        searchTerms
+        searchTerms,
+        knownPayerIbans
       }));
   });
 }
