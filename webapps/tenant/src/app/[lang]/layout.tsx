@@ -31,12 +31,13 @@ const roboto = Roboto({
 });
 
 export default async function RootLayout({
-  params: { lang },
+  params,
   children
 }: {
-  params: { lang: Locale };
+  params: Promise<{ lang: Locale }>;
   children: ReactNode;
 }) {
+  const { lang } = await params;
   noStore(); // Opt into dynamic rendering
 
   return (

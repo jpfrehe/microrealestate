@@ -63,4 +63,14 @@ export type EnvironmentValues = {
     replyToEmail: string;
     bccEmails: string;
   };
+  // TrueLayer open-banking aggregator (UC1). client_id/client_secret come
+  // from TrueLayer Console (https://console.truelayer.com); client_secret
+  // is expected to be injected as a GitHub Actions encrypted secret in
+  // deployment, never committed - see docker-compose.microservices.base.yml
+  // and .github/workflows/ci.yml.
+  TRUELAYER?: {
+    clientId: string;
+    clientSecret: string;
+    environment: 'sandbox' | 'live';
+  };
 };

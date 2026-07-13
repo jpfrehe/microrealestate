@@ -9,8 +9,9 @@ const baseURL =
   getServerEnv('GATEWAY_URL') ||
   'http://localhost';
 
-export default function getApiFetcher() {
-  const sessionToken = cookies().get('sessionToken')?.value;
+export default async function getApiFetcher() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get('sessionToken')?.value;
   const apiFetcher = axios.create({
     baseURL,
     withCredentials,

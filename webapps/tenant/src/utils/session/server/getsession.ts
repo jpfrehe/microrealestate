@@ -9,7 +9,8 @@ export default async function getServerSession(): Promise<Session | null> {
     session = mockedSession;
   } else {
     try {
-      const response = await getApiFetcher().get(
+      const apiFetcher = await getApiFetcher();
+      const response = await apiFetcher.get(
         '/api/v2/authenticator/tenant/session'
       );
       session = response.data;

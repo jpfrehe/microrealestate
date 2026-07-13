@@ -7,7 +7,8 @@ import {
 import { headers } from 'next/headers';
 
 export default async function getTranslation() {
-  const pathname = headers().get('x-path') || '';
+  const headerStore = await headers();
+  const pathname = headerStore.get('x-path') || '';
   const locale = getLocaleFromPathname(pathname) || DEFAULT_LOCALE;
   const messages = await fetchMessages(locale);
   return {

@@ -13,12 +13,12 @@ import {
   InputOTPGroup,
   InputOTPSlot
 } from '@/components/ui/input-otp';
+import { use, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import getEnv from '@/utils/env/client';
 import useApiFetcher from '@/utils/fetch/client';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
 import { useToast } from '@/components/ui/use-toast';
 import useTranslation from '@/utils/i18n/client/useTranslation';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,10 +31,11 @@ type OTPFormValues = z.infer<typeof otpFormSchema>;
 export default function OTP({
   params
 }: {
-  params: {
+  params: Promise<{
     email: string;
-  };
+  }>;
 }) {
+  const { email: emailParam } = use(params);
   const { t } = useTranslation();
   const form = useForm<OTPFormValues>({
     resolver: zodResolver(otpFormSchema),
@@ -44,7 +45,7 @@ export default function OTP({
   const apiFetcher = useApiFetcher();
   const router = useRouter();
   const [loading, setLoading] = useState<boolean>(false);
-  const email = decodeURIComponent(params.email);
+  const email = decodeURIComponent(emailParam);
 
   async function onSubmit(values: OTPFormValues) {
     try {
