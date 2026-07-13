@@ -15,7 +15,10 @@ async function Main() {
       new EnvironmentConfig({
         DEMO_MODE: process.env.DEMO_MODE
           ? process.env.DEMO_MODE.toLowerCase() === 'true'
-          : undefined
+          : undefined,
+        LANDLORD_APP_URL:
+          process.env.LANDLORD_APP_URL || 'http://localhost:8080/landlord',
+        API_URL: process.env.API_URL || 'http://api:8200/api/v2'
       })
     );
 
