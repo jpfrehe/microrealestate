@@ -125,6 +125,7 @@ services:
       - CIPHER_KEY
       - CIPHER_IV_KEY
       - PDFGENERATOR_URL
+      - API_URL
       - GMAIL_EMAIL
       - GMAIL_APP_PASSWORD
       - MAILGUN_API_KEY

@@ -57,6 +57,7 @@ export namespace CollectionTypes {
       name: string;
       iban: string;
     };
+    taxAdvisorEmail?: string;
     contacts: {
       name: string;
       email: string;

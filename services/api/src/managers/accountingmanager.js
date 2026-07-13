@@ -1,5 +1,6 @@
-import { buildDatevBookings } from './datevexport.js';
-import { Collections } from '@microrealestate/common';
+import { buildDatevBookings, buildExtfHeader } from './datevexport.js';
+import { Collections, logger, Service } from '@microrealestate/common';
+import axios from 'axios';
 import i18n from 'i18n';
 import moment from 'moment';
 import { Parser } from 'json2csv';
@@ -442,17 +443,46 @@ async function _fetchDatevData(realmId, year, month) {
   const startTerm = Number(startOfMonth.format('YYYYMMDDHH'));
   const endTerm = Number(endOfMonth.format('YYYYMMDDHH'));
 
-  const [tenants, expenses, properties] = await Promise.all([
-    Collections.Tenant.find({
-      realmId,
-      'rents.term': { $gte: startTerm, $lte: endTerm }
-    }).lean(),
-    Collections.Expense.find({
-      realmId,
-      date: { $gte: startOfMonth.toDate(), $lte: endOfMonth.toDate() }
-    }).lean(),
-    Collections.Property.find({ realmId }).lean()
-  ]);
+  const [tenants, rawExpenses, properties, unreconciledTransactionCount] =
+    await Promise.all([
+      Collections.Tenant.find({
+        realmId,
+        'rents.term': { $gte: startTerm, $lte: endTerm }
+      }).lean(),
+      Collections.Expense.find({
+        realmId,
+        date: { $gte: startOfMonth.toDate(), $lte: endOfMonth.toDate() }
+      }).lean(),
+      Collections.Property.find({ realmId }).lean(),
+      // UC4 alternate flow: warn before export if the period still has open
+      // UC2 booking proposals (see services/banking) - shares this Mongo
+      // instance, so no cross-service HTTP call is needed (same pattern as
+      // dashboardmanager.js's BankAccount lookup)
+      Collections.Transaction.countDocuments({
+        realmId,
+        matchStatus: { $in: ['suggested', 'unmatched'] },
+        bookingDate: { $gte: startOfMonth.toDate(), $lte: endOfMonth.toDate() }
+      })
+    ]);
+
+  const documentIds = rawExpenses
+    .map((expense) => expense.documentId)
+    .filter(Boolean);
+  const documents = documentIds.length
+    ? await Collections.Document.find({
+        _id: { $in: documentIds },
+        realmId
+      }).lean()
+    : [];
+  const documentNameById = new Map(
+    documents.map((document) => [String(document._id), document.name])
+  );
+  const expenses = rawExpenses.map((expense) => ({
+    ...expense,
+    documentName: expense.documentId
+      ? documentNameById.get(String(expense.documentId))
+      : undefined
+  }));
 
   const payments = tenants.flatMap((tenant) => {
     const propertyIds = (tenant.properties || []).map(
@@ -471,7 +501,14 @@ async function _fetchDatevData(realmId, year, month) {
       );
   });
 
-  return { payments, expenses, properties };
+  return {
+    payments,
+    expenses,
+    properties,
+    unreconciledTransactionCount,
+    periodStart: startOfMonth.toDate(),
+    periodEnd: endOfMonth.toDate()
+  };
 }
 
 // Lets the landlord check for unclassified bookings before downloading the
@@ -481,18 +518,62 @@ export async function datevPreview(req, res) {
   const realm = req.realm;
   const { year, month } = req.params;
 
-  const { payments, expenses, properties } = await _fetchDatevData(
-    String(realm._id),
-    Number(year),
-    Number(month)
-  );
+  const { payments, expenses, properties, unreconciledTransactionCount } =
+    await _fetchDatevData(String(realm._id), Number(year), Number(month));
   const { bookings, unclassified } = buildDatevBookings({
     payments,
     expenses,
     properties
   });
 
-  res.json({ bookingsCount: bookings.length, unclassified });
+  res.json({
+    bookingsCount: bookings.length,
+    unclassified,
+    unreconciledTransactionCount
+  });
+}
+
+const DATEV_CSV_FIELDS = [
+  {
+    label: 'Umsatz (ohne Soll/Haben-Kz)',
+    value: (row) => row.amount.toFixed(2).replace('.', ',')
+  },
+  { label: 'Soll/Haben-Kennzeichen', value: 'debitCredit' },
+  { label: 'WKZ Umsatz', default: 'EUR' },
+  { label: 'Konto', value: 'account' },
+  { label: 'Gegenkonto (ohne BU-Schlüssel)', value: 'offsetAccount' },
+  { label: 'BU-Schlüssel', value: 'taxKey' },
+  {
+    label: 'Belegdatum',
+    value: (row) => moment(row.bookingDate).format('DDMM')
+  },
+  { label: 'Belegfeld 1', value: 'documentReference' },
+  { label: 'Buchungstext', value: 'bookingText' },
+  { label: 'KOST1 - Kostenstelle', value: 'costCenter' }
+];
+
+async function _buildDatevCsv(realm, year, month) {
+  const { payments, expenses, properties, periodStart, periodEnd } =
+    await _fetchDatevData(String(realm._id), Number(year), Number(month));
+  // only cleanly classified bookings go into the accounting-relevant file;
+  // unclassified ones stay out and must be resolved via /datev/preview first
+  const { bookings } = buildDatevBookings({ payments, expenses, properties });
+
+  const extfHeader = buildExtfHeader({
+    createdAt: new Date(),
+    periodStart,
+    periodEnd
+  });
+  const json2csv = new Parser({
+    fields: DATEV_CSV_FIELDS,
+    delimiter: ';',
+    withBOM: false,
+    header: true
+  });
+  const rowsCsv = json2csv.parse(bookings);
+
+  const BOM = '\uFEFF'; // DATEV import tools expect a UTF-8 byte order mark
+  return `${BOM}${extfHeader}\r\n${rowsCsv.replaceAll('\n', '\r\n')}`;
 }
 
 export async function datevAsCsv(req, res) {
@@ -500,38 +581,58 @@ export async function datevAsCsv(req, res) {
   const { year, month } = req.params;
   i18n.setLocale(realm.locale);
 
-  const { payments, expenses, properties } = await _fetchDatevData(
-    String(realm._id),
-    Number(year),
-    Number(month)
-  );
-  // only cleanly classified bookings go into the accounting-relevant file;
-  // unclassified ones stay out and must be resolved via /datev/preview first
-  const { bookings } = buildDatevBookings({ payments, expenses, properties });
-
-  const fields = [
-    {
-      label: 'Umsatz',
-      value: (row) => row.amount.toFixed(2).replace('.', ',')
-    },
-    { label: 'Soll/Haben-Kennzeichen', value: 'debitCredit' },
-    { label: 'Konto', value: 'account' },
-    { label: 'Kostenstelle', value: 'costCenter' },
-    {
-      label: 'Belegdatum',
-      value: (row) => moment(row.bookingDate).format('DDMMYYYY')
-    },
-    { label: 'Buchungstext', value: 'bookingText' },
-    { label: 'Belegfeld1', value: 'documentReference' }
-  ];
-
-  const json2csv = new Parser({ fields, delimiter: ';', withBOM: true });
-  const csvContent = json2csv.parse(bookings);
+  const csvContent = await _buildDatevCsv(realm, year, month);
   res.header('Content-Type', 'text/csv');
+  res.header(
+    'Content-Disposition',
+    `attachment; filename="datev-${year}-${String(month).padStart(2, '0')}.csv"`
+  );
   return res.send(csvContent);
+}
+
+// UC4: optional delivery of the export straight to the tax advisor's inbox,
+// reusing the emailer service the same way rent-related emails do (see
+// emailmanager.js) - the emailer fetches the CSV itself from the /datev
+// route above rather than us shipping the bytes through the request body,
+// mirroring how PDF attachments are fetched (services/emailer/src/
+// emailparts/attachments/fetchpdf.js).
+export async function datevSend(req, res) {
+  const realm = req.realm;
+  const { year, month } = req.params;
+
+  if (!realm.taxAdvisorEmail) {
+    return res
+      .status(422)
+      .json({ message: 'no tax advisor email configured for this realm' });
+  }
+
+  const { EMAILER_URL } = Service.getInstance().envConfig.getValues();
+  try {
+    await axios.post(
+      EMAILER_URL,
+      {
+        templateName: 'datev_export',
+        recordId: String(realm._id),
+        params: { year, month }
+      },
+      {
+        headers: {
+          authorization: req.headers.authorization,
+          organizationid: req.headers.organizationid,
+          'Accept-Language': req.headers['accept-language']
+        }
+      }
+    );
+  } catch (error) {
+    logger.error(String(error));
+    throw error;
+  }
+
+  res.sendStatus(204);
 }
 
 export const datev = {
   preview: datevPreview,
-  csv: datevAsCsv
+  csv: datevAsCsv,
+  send: datevSend
 };

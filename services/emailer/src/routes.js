@@ -24,7 +24,8 @@ async function _send(req, res) {
         'rentcall',
         'rentcall_last_reminder',
         'rentcall_reminder',
-        'bank_consent_reminder'
+        'bank_consent_reminder',
+        'datev_export'
       ];
       break;
   }

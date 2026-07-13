@@ -16,6 +16,10 @@ const DATEV_EXPENSE_ACCOUNTS = {
   loan_interest: '2130', // Zinsaufwand
   other: '4900' // Sonstige betriebliche Aufwendungen
 };
+// Gegenkonto (offsetting account): the bank/clearing account every booking
+// below is posted against - illustrative SKR03 "Bank" placeholder, same
+// caveat as the accounts above.
+const DATEV_BANK_ACCOUNT = '1200';
 
 function round2(amount) {
   return Math.round(amount * 100) / 100;
@@ -41,7 +45,9 @@ export function resolveCostCenter(propertyIds, properties) {
 }
 
 // payments: [{ tenantName, propertyIds, amount, date, reference, documentId }]
-// expenses: [{ category, propertyId, amount, date, description, documentId }]
+// expenses: [{ category, propertyId, amount, date, description, documentId, documentName }]
+//   documentName is resolved by the caller (accountingmanager.js) from the
+//   Document collection when documentId is set, so this stays DB-independent
 // properties: [{ _id, name }]
 export function buildDatevBookings({ payments, expenses, properties }) {
   const bookings = [];
@@ -54,9 +60,13 @@ export function buildDatevBookings({ payments, expenses, properties }) {
       amount: round2(Math.abs(payment.amount)),
       debitCredit: 'H',
       account: DATEV_RENT_INCOME_ACCOUNT,
+      offsetAccount: DATEV_BANK_ACCOUNT,
+      taxKey: '',
       costCenter,
       bookingDate: payment.date,
       bookingText: `Miete ${payment.tenantName}`,
+      // no persisted Document for rent receipts (generated on demand by
+      // pdfgenerator) - the bank transaction reference is the closest thing
       documentReference: payment.reference || '',
       documentId: payment.documentId || ''
     };
@@ -82,10 +92,12 @@ export function buildDatevBookings({ payments, expenses, properties }) {
       amount: round2(Math.abs(expense.amount)),
       debitCredit: 'S',
       account: account || DATEV_UNCLASSIFIED_ACCOUNT,
+      offsetAccount: DATEV_BANK_ACCOUNT,
+      taxKey: '',
       costCenter,
       bookingDate: expense.date,
       bookingText: expense.description || expense.category,
-      documentReference: expense.documentId || '',
+      documentReference: expense.documentName || expense.documentId || '',
       documentId: expense.documentId || ''
     };
 
@@ -102,4 +114,52 @@ export function buildDatevBookings({ payments, expenses, properties }) {
   });
 
   return { bookings, unclassified };
+}
+
+// Best-effort "EXTF" header row DATEV's Buchungsstapel ASCII import format
+// expects as the very first line of the file, ahead of the column-header
+// and data rows - see DATEV's "Formatbeschreibung Buchungsstapel". This is
+// NOT independently verified against a certified DATEV test import; the
+// consultant/client numbers below are placeholders exactly like the account
+// numbers above and must be replaced with the landlord's real Berater-/
+// Mandantennummer before a file is actually handed to a Steuerberater.
+export function buildExtfHeader({
+  createdAt,
+  periodStart,
+  periodEnd,
+  consultantNumber = 1001,
+  clientNumber = 1
+}) {
+  const pad2 = (n) => String(n).padStart(2, '0');
+  const timestamp = `${createdAt.getFullYear()}${pad2(createdAt.getMonth() + 1)}${pad2(createdAt.getDate())}${pad2(createdAt.getHours())}${pad2(createdAt.getMinutes())}${pad2(createdAt.getSeconds())}000`;
+  const fiscalYearStart = `${periodStart.getFullYear()}0101`;
+  const fromDate = `${periodStart.getFullYear()}${pad2(periodStart.getMonth() + 1)}${pad2(periodStart.getDate())}`;
+  const toDate = `${periodEnd.getFullYear()}${pad2(periodEnd.getMonth() + 1)}${pad2(periodEnd.getDate())}`;
+
+  const fields = [
+    'EXTF',
+    700, // format version
+    21, // format category: Buchungsstapel
+    'Buchungsstapel',
+    13, // format version of "Buchungsstapel"
+    timestamp,
+    '', // imported at
+    'RE', // origin: "Rechnungswesen"
+    '', // exporting application info
+    '',
+    consultantNumber,
+    clientNumber,
+    fiscalYearStart,
+    4, // account length (matches the illustrative 4-digit SKR03 accounts)
+    fromDate,
+    toDate,
+    'MicroRealEstate Export',
+    '', // Diktatkürzel
+    1, // Buchungstyp: 1 = Finanzbuchführung
+    0,
+    0,
+    'EUR'
+  ];
+
+  return fields.join(';');
 }

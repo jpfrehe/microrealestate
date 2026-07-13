@@ -64,5 +64,7 @@
   "{{appName}} Bank account re-authorization required": "{{appName}} Bank account re-authorization required",
   "The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.": "The bank connection for {{bankName}} ({{iban}}) requires re-authorization - transactions are no longer being imported automatically.",
   "The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.": "The bank connection for {{bankName}} ({{iban}}) will expire on {{date}} and will need to be re-authorized to keep importing transactions automatically.",
-  "Please reconnect this account from the Bank accounts section of your organization settings.": "Please reconnect this account from the Bank accounts section of your organization settings."
+  "Please reconnect this account from the Bank accounts section of your organization settings.": "Please reconnect this account from the Bank accounts section of your organization settings.",
+  "DATEV export {{period}} - {{landlordName}}": "DATEV export {{period}} - {{landlordName}}",
+  "Please find attached the DATEV accounting export for {{period}}.": "Please find attached the DATEV accounting export for {{period}}."
 }

@@ -167,6 +167,7 @@ services:
       CIPHER_KEY: ${CIPHER_KEY:-cipher_key} # Change key in production
       CIPHER_IV_KEY: ${CIPHER_IV_KEY:-cipher_iv_key} # Change key in production
       PDFGENERATOR_URL: http://pdfgenerator:8300/pdfgenerator
+      API_URL: http://api:8200/api/v2
       #########################################
       # Email service configuration
       # needed to reset landlord password
