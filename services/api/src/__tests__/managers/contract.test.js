@@ -252,6 +252,42 @@ describe('contract functionalities', () => {
     }).toThrow();
   });
 
+  it('create contract with DD/MM/YYYY string dates where day > 12', () => {
+    // occupant.beginDate/endDate are stored/read as 'DD/MM/YYYY' strings;
+    // JS Date parsing of such strings is ambiguous and previously produced
+    // Invalid Date whenever the day part was > 12 (e.g. '31/12/2024').
+    const contract = Contract.create({
+      begin: '01/01/2016',
+      end: '31/12/2024',
+      frequency: 'months',
+      properties: [{}, {}]
+    });
+
+    expect(contract.terms).toEqual(108); // incorrect number of terms
+    expect(contract.rents.length).toEqual(108); // incorrect number of rents
+  });
+
+  it('pay a term with DD/MM/YYYY string dates where day > 12', () => {
+    const contract = Contract.create({
+      begin: '01/01/2016',
+      end: '31/12/2024',
+      frequency: 'months',
+      properties: [{}, {}]
+    });
+
+    expect(() => {
+      Contract.payTerm(contract, '202412010000', {
+        payments: [{ amount: 200 }],
+        discounts: ['discount']
+      });
+    }).not.toThrow();
+
+    expect(
+      contract.rents.find((rent) => rent.term === 2024120100).payments[0]
+        .amount
+    ).toEqual(200);
+  });
+
   it('pay a term', () => {
     const contract = Contract.create({
       begin: Date.parse('2017-01-01T00:00:00'),
