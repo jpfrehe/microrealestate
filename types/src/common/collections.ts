@@ -290,6 +290,10 @@ export namespace CollectionTypes {
     bankName: string;
     accountHolder: string;
     encryptedAccessToken: string;
+    // optional: only aggregators with short-lived access tokens (e.g.
+    // TrueLayer) issue a separate refresh token; the mock adapter's single
+    // opaque long-lived token has none
+    encryptedRefreshToken?: string;
     consentGivenDate: Date;
     consentExpiryDate: Date;
     status: BankAccountStatus;

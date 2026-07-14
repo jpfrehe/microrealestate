@@ -14,6 +14,9 @@ const BankAccountSchema = new mongoose.Schema<CollectionTypes.BankAccount>({
 
   // encrypted with common/utils/crypto (CIPHER_KEY/CIPHER_IV_KEY), never stored in clear text
   encryptedAccessToken: String,
+  // encrypted with common/utils/crypto (CIPHER_KEY/CIPHER_IV_KEY), never stored in clear text;
+  // optional since not every aggregator provider issues a separate refresh token
+  encryptedRefreshToken: String,
 
   consentGivenDate: Date,
   consentExpiryDate: Date,

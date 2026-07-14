@@ -15,7 +15,7 @@ export type BankAccountSelection = {
 
 export type ConnectionTokenPayload = Pick<
   ConnectionResult,
-  'accessToken' | 'consentExpiryDate'
+  'accessToken' | 'refreshToken' | 'consentExpiryDate'
 > & { provider: string };
 
 // completeConnection() and selectAccounts() are two separate HTTP calls (the
@@ -40,6 +40,7 @@ export function parseConnectionToken(
   return {
     provider: payload.provider,
     accessToken: payload.accessToken,
+    refreshToken: payload.refreshToken,
     consentExpiryDate: new Date(payload.consentExpiryDate)
   };
 }
@@ -50,7 +51,10 @@ export function parseConnectionToken(
 export function toBankAccountRecords(
   realmId: string,
   provider: string,
-  connectionResult: Pick<ConnectionResult, 'accessToken' | 'consentExpiryDate'>,
+  connectionResult: Pick<
+    ConnectionResult,
+    'accessToken' | 'refreshToken' | 'consentExpiryDate'
+  >,
   selections: BankAccountSelection[],
   encrypt: (text: string) => string,
   now: Date = new Date()
@@ -68,6 +72,9 @@ export function toBankAccountRecords(
     bankName: selection.bankName,
     accountHolder: selection.accountHolder,
     encryptedAccessToken: encrypt(connectionResult.accessToken),
+    encryptedRefreshToken: connectionResult.refreshToken
+      ? encrypt(connectionResult.refreshToken)
+      : undefined,
     consentGivenDate: now,
     consentExpiryDate: connectionResult.consentExpiryDate,
     status: 'connected'
@@ -159,8 +166,15 @@ export function toTransactionRecords(
 
 export function stripSecrets(
   bankAccount: CollectionTypes.BankAccount
-): Omit<CollectionTypes.BankAccount, 'encryptedAccessToken'> {
+): Omit<
+  CollectionTypes.BankAccount,
+  'encryptedAccessToken' | 'encryptedRefreshToken'
+> {
   const copy: Partial<CollectionTypes.BankAccount> = { ...bankAccount };
   delete copy.encryptedAccessToken;
-  return copy as Omit<CollectionTypes.BankAccount, 'encryptedAccessToken'>;
+  delete copy.encryptedRefreshToken;
+  return copy as Omit<
+    CollectionTypes.BankAccount,
+    'encryptedAccessToken' | 'encryptedRefreshToken'
+  >;
 }
