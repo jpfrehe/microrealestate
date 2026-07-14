@@ -43,6 +43,10 @@ export default function routes() {
     '/:id/sync',
     Middlewares.asyncWrapper(bankAccountManager.syncAccount)
   );
+  bankAccountsRouter.get(
+    '/:id/balance',
+    Middlewares.asyncWrapper(bankAccountManager.getBalance)
+  );
   router.use('/bankaccounts', bankAccountsRouter);
 
   const transactionsRouter = express.Router();
