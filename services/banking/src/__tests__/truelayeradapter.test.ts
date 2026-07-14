@@ -131,8 +131,12 @@ describe('TrueLayerAdapter', () => {
       const daysUntilExpiry =
         (result.consentExpiryDate.getTime() - before.getTime()) /
         (1000 * 60 * 60 * 24);
-      expect(daysUntilExpiry).toBeGreaterThan(89);
-      expect(daysUntilExpiry).toBeLessThanOrEqual(90);
+      // consentExpiryDate is computed via its own `new Date()` inside the
+      // adapter, strictly after `before` was captured, so a few ms of real
+      // async work (Promise.all over two mocked calls) can push this a hair
+      // past exactly 90 days - assert "~90 days", not an exact upper bound.
+      expect(daysUntilExpiry).toBeGreaterThan(89.9);
+      expect(daysUntilExpiry).toBeLessThan(90.1);
 
       // token exchange must reuse the exact redirect_uri passed to
       // initiateConnection, recovered from the opaque connectionId

@@ -103,6 +103,7 @@ export async function completeConnection(
     {
       provider: adapter.provider,
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       consentExpiryDate: result.consentExpiryDate
     },
     Crypto.encrypt
