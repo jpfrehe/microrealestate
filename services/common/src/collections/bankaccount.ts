@@ -26,6 +26,7 @@ const BankAccountSchema = new mongoose.Schema<CollectionTypes.BankAccount>({
     default: 'pending'
   },
   lastSyncDate: Date,
+  lastBalanceFetchDate: Date,
   reauthReminderSentDate: Date,
 
   createdDate: Date,

@@ -319,9 +319,11 @@ export async function syncAccount(req: Express.Request, res: Express.Response) {
 }
 
 // On-demand account balance (UC1): mirrors syncAccount's reauth handling
-// (consent-expiry check up front, ConsentDeniedError caught mid-call) but
-// neither writes transactions nor triggers matching, since it doesn't fetch
-// any.
+// (consent-expiry check up front, ConsentDeniedError caught mid-call) and,
+// like syncAccount, caps how often this DB-and-aggregator-accessing route can
+// be repeated per account using the account's own persisted timestamp as the
+// clock (CodeQL flagged the equivalent unrate-limited sync route previously -
+// see commit 140bb06 - same fix applied here).
 export async function getBalance(req: Express.Request, res: Express.Response) {
   const request = req as ServiceRequest;
   const bankAccount = await Collections.BankAccount.findOne({
@@ -331,6 +333,14 @@ export async function getBalance(req: Express.Request, res: Express.Response) {
 
   if (!bankAccount) {
     return res.sendStatus(404);
+  }
+
+  if (
+    bankAccount.lastBalanceFetchDate &&
+    Date.now() - bankAccount.lastBalanceFetchDate.getTime() <
+      MIN_SYNC_INTERVAL_MS
+  ) {
+    return res.status(429).json({ message: 'balance requested too recently' });
   }
 
   const now = new Date();
@@ -367,12 +377,14 @@ export async function getBalance(req: Express.Request, res: Express.Response) {
     });
 
     bankAccount.status = status;
+    bankAccount.lastBalanceFetchDate = now;
     await bankAccount.save();
 
     res.json({ ...balance, bankAccount: stripSecrets(bankAccount.toObject()) });
   } catch (error) {
     if (error instanceof ConsentDeniedError) {
       bankAccount.status = 'reauth_required';
+      bankAccount.lastBalanceFetchDate = now;
       await bankAccount.save();
       return res.json(stripSecrets(bankAccount.toObject()));
     }

@@ -298,6 +298,9 @@ export namespace CollectionTypes {
     consentExpiryDate: Date;
     status: BankAccountStatus;
     lastSyncDate?: Date;
+    // rate-limits GET /:id/balance the same way lastSyncDate rate-limits
+    // POST /:id/sync (CodeQL: DB-accessing route must be rate-limited)
+    lastBalanceFetchDate?: Date;
     // set once a consent-expiry reminder email has been sent, so the
     // scheduled sync job (UC1) never sends more than one per account
     reauthReminderSentDate?: Date;
