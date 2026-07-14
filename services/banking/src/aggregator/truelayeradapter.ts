@@ -115,9 +115,8 @@ function getErrorResponseData(error: unknown): RawErrorResponse | undefined {
   if (typeof error !== 'object' || error === null || !('response' in error)) {
     return undefined;
   }
-  const response = (
-    error as { response?: { data?: RawErrorResponse } }
-  ).response;
+  const response = (error as { response?: { data?: RawErrorResponse } })
+    .response;
   return response?.data;
 }
 
