@@ -94,8 +94,11 @@ describe('MockAggregatorAdapter', () => {
       const daysUntilExpiry =
         (result.consentExpiryDate.getTime() - before.getTime()) /
         (1000 * 60 * 60 * 24);
-      expect(daysUntilExpiry).toBeGreaterThan(89);
-      expect(daysUntilExpiry).toBeLessThanOrEqual(90);
+      // consentExpiryDate is computed via `new Date()` inside the adapter after
+      // `before` is captured, so real wall-clock time elapses between the two
+      // calls - use a small tolerance instead of an exact <=90 bound.
+      expect(daysUntilExpiry).toBeGreaterThan(89.9);
+      expect(daysUntilExpiry).toBeLessThan(90.1);
     });
 
     it('rejects when the account holder denies the SCA/TAN step', async () => {

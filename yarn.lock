@@ -2393,6 +2393,7 @@ __metadata:
     eslint: 8.57.0
     eslint-config-prettier: 9.1.0
     eslint-plugin-import: 2.29.1
+    express-rate-limit: 7.4.1
     jest: 29.7.0
     moment: 2.29.4
     npm-run-all: 4.1.5
@@ -9905,6 +9906,15 @@ __metadata:
   version: 2.2.0
   resolution: "express-mongo-sanitize@npm:2.2.0"
   checksum: d7a3b7c1d3bf856cd50a74b3a15724d1319c8b4922eb4d106abd4721f98281f716aae37e40729d22b5e706c04a0ff7beb4b89a661d81385777b6ff49b925e736
+  languageName: node
+  linkType: hard
+
+"express-rate-limit@npm:7.4.1":
+  version: 7.4.1
+  resolution: "express-rate-limit@npm:7.4.1"
+  peerDependencies:
+    express: 4 || 5 || ^5.0.0-beta.1
+  checksum: 9eeb159cba08cc968d62eeb3c486cbb1daf779240fa2c3d0c8e90580e76b33ca9ffac205de165facf1f00637aa23326ab2445671723a620aae1f1dfbec7f6c3b
   languageName: node
   linkType: hard
 
