@@ -150,4 +150,21 @@ describe('MockAggregatorAdapter', () => {
       expect(transactions).toEqual([]);
     });
   });
+
+  describe('getBalance', () => {
+    it('returns a deterministic balance for the given account', async () => {
+      const balance = await adapter.getBalance({
+        accessToken: 'token',
+        aggregatorAccountId: 'acc-1'
+      });
+
+      expect(balance.aggregatorAccountId).toBe('acc-1');
+      expect(balance.currency).toBe('EUR');
+      expect(typeof balance.availableBalance).toBe('number');
+      expect(typeof balance.currentBalance).toBe('number');
+      expect(balance.availableBalance).toBeGreaterThanOrEqual(0);
+      expect(balance.currentBalance).toBeGreaterThanOrEqual(0);
+      expect(balance.asOfDate).toBeInstanceOf(Date);
+    });
+  });
 });

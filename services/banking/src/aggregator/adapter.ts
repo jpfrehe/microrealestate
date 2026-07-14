@@ -38,9 +38,28 @@ export type ConnectionResult = {
   // opaque credential handed back by the aggregator; the caller is
   // responsible for encrypting it before persisting it
   accessToken: string;
+  // present when the aggregator issues a separate long-lived token to
+  // renew accessToken without redoing the SCA/consent flow
+  refreshToken?: string;
   // consent lifetime granted by the bank, typically 90 days under PSD2/XS2A
   consentExpiryDate: Date;
   accounts: AggregatorAccount[];
+};
+
+export type AggregatorBalance = {
+  aggregatorAccountId: string;
+  currency: string;
+  availableBalance: number;
+  currentBalance: number;
+  asOfDate: Date;
+};
+
+// callback fired when an adapter call transparently refreshed the access
+// token (e.g. TrueLayer's short-lived tokens), so the caller can persist the
+// new credentials without threading a return value through every method
+export type RefreshedTokens = {
+  accessToken: string;
+  refreshToken?: string;
 };
 
 export class BankNotSupportedError extends Error {
@@ -79,5 +98,15 @@ export interface AggregatorAdapter {
     accessToken: string;
     aggregatorAccountId: string;
     since?: Date;
+    // optional: only providers with short-lived access tokens need these
+    refreshToken?: string;
+    onTokensRefreshed?: (tokens: RefreshedTokens) => void;
   }): Promise<AggregatorTransaction[]>;
+
+  getBalance(input: {
+    accessToken: string;
+    refreshToken?: string;
+    aggregatorAccountId: string;
+    onTokensRefreshed?: (tokens: RefreshedTokens) => void;
+  }): Promise<AggregatorBalance>;
 }
