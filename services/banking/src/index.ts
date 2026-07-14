@@ -29,7 +29,11 @@ async function Main() {
         LANDLORD_APP_URL:
           process.env.LANDLORD_APP_URL || 'http://localhost:8080/landlord',
         API_URL: process.env.API_URL || 'http://api:8200/api/v2',
-        EMAILER_URL: process.env.EMAILER_URL || 'http://localhost:8083/emailer'
+        EMAILER_URL: process.env.EMAILER_URL || 'http://localhost:8083/emailer',
+        TRUELAYER_CLIENT_ID: process.env.TRUELAYER_CLIENT_ID,
+        TRUELAYER_CLIENT_SECRET: process.env.TRUELAYER_CLIENT_SECRET,
+        TRUELAYER_ENVIRONMENT:
+          process.env.TRUELAYER_ENVIRONMENT === 'live' ? 'live' : 'sandbox'
       })
     );
 

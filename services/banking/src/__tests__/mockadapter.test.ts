@@ -94,8 +94,11 @@ describe('MockAggregatorAdapter', () => {
       const daysUntilExpiry =
         (result.consentExpiryDate.getTime() - before.getTime()) /
         (1000 * 60 * 60 * 24);
-      expect(daysUntilExpiry).toBeGreaterThan(89);
-      expect(daysUntilExpiry).toBeLessThanOrEqual(90);
+      // consentExpiryDate is computed via `new Date()` inside the adapter after
+      // `before` is captured, so real wall-clock time elapses between the two
+      // calls - use a small tolerance instead of an exact <=90 bound.
+      expect(daysUntilExpiry).toBeGreaterThan(89.9);
+      expect(daysUntilExpiry).toBeLessThan(90.1);
     });
 
     it('rejects when the account holder denies the SCA/TAN step', async () => {
@@ -148,6 +151,23 @@ describe('MockAggregatorAdapter', () => {
         aggregatorAccountId: 'acc-1'
       });
       expect(transactions).toEqual([]);
+    });
+  });
+
+  describe('getBalance', () => {
+    it('returns a deterministic balance for the given account', async () => {
+      const balance = await adapter.getBalance({
+        accessToken: 'token',
+        aggregatorAccountId: 'acc-1'
+      });
+
+      expect(balance.aggregatorAccountId).toBe('acc-1');
+      expect(balance.currency).toBe('EUR');
+      expect(typeof balance.availableBalance).toBe('number');
+      expect(typeof balance.currentBalance).toBe('number');
+      expect(balance.availableBalance).toBeGreaterThanOrEqual(0);
+      expect(balance.currentBalance).toBeGreaterThanOrEqual(0);
+      expect(balance.asOfDate).toBeInstanceOf(Date);
     });
   });
 });

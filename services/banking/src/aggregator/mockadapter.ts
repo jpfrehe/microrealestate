@@ -1,10 +1,12 @@
 import {
   AggregatorAdapter,
+  AggregatorBalance,
   AggregatorTransaction,
   BankNotSupportedError,
   ConnectionInitiation,
   ConnectionResult,
   ConsentDeniedError,
+  RefreshedTokens,
   SupportedBank
 } from './adapter.js';
 
@@ -112,10 +114,29 @@ export default class MockAggregatorAdapter implements AggregatorAdapter {
       accessToken: string;
       aggregatorAccountId: string;
       since?: Date;
+      refreshToken?: string;
+      onTokensRefreshed?: (tokens: RefreshedTokens) => void;
     }
   ): Promise<AggregatorTransaction[]> {
     // deterministic, empty by default: dev/demo callers seed transactions
     // directly in the database rather than relying on fabricated data here
     return [];
+  }
+
+  async getBalance(input: {
+    accessToken: string;
+    refreshToken?: string;
+    aggregatorAccountId: string;
+    onTokensRefreshed?: (tokens: RefreshedTokens) => void;
+  }): Promise<AggregatorBalance> {
+    // deterministic, fixed value: the mock has no real account ledger to
+    // read from, so it returns a plausible balance for the given account
+    return {
+      aggregatorAccountId: input.aggregatorAccountId,
+      currency: 'EUR',
+      availableBalance: 1000,
+      currentBalance: 1000,
+      asOfDate: new Date()
+    };
   }
 }

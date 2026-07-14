@@ -2,6 +2,18 @@ import * as bankAccountManager from './managers/bankaccountmanager.js';
 import * as matchingManager from './managers/matchingmanager.js';
 import { Middlewares, Service } from '@microrealestate/common';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
+
+// Complements the persisted lastBalanceFetchDate cooldown in
+// bankaccountmanager.getBalance (which rate-limits per account across
+// service instances) with a per-IP window, matching CodeQL's expected
+// rate-limiting pattern for a DB-accessing route (js/missing-rate-limiting).
+const balanceRateLimiter = rateLimit({
+  windowMs: 30 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 export default function routes() {
   const { ACCESS_TOKEN_SECRET } = Service.getInstance().envConfig.getValues();
@@ -42,6 +54,11 @@ export default function routes() {
   bankAccountsRouter.post(
     '/:id/sync',
     Middlewares.asyncWrapper(bankAccountManager.syncAccount)
+  );
+  bankAccountsRouter.get(
+    '/:id/balance',
+    balanceRateLimiter,
+    Middlewares.asyncWrapper(bankAccountManager.getBalance)
   );
   router.use('/bankaccounts', bankAccountsRouter);
 

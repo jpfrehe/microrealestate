@@ -22,11 +22,24 @@ import {
 import MockAggregatorAdapter from '../aggregator/mockadapter.js';
 import mongoose from 'mongoose';
 import { runMatchingForRealm } from './matchingmanager.js';
+import TrueLayerAdapter from '../aggregator/truelayeradapter.js';
 
-// Until a real XS2A provider is contracted (see system.md's provider
-// comparison), the mock adapter lets the connect/sync/matching flow run
-// end-to-end. Swapping providers only requires changing this one line.
-const adapter: AggregatorAdapter = new MockAggregatorAdapter();
+// TrueLayer (see system.md's provider comparison) is now wired in: once
+// TRUELAYER_CLIENT_ID/TRUELAYER_CLIENT_SECRET are configured, it's used for
+// the connect/sync/matching flow; otherwise the deterministic mock adapter
+// keeps that flow runnable end-to-end without live bank credentials. Reads
+// process.env directly (not Service.getInstance().envConfig) because this
+// module is imported - and this line runs - before index.ts's Main() calls
+// Service.getInstance(new EnvironmentConfig(...)).
+const adapter: AggregatorAdapter =
+  process.env.TRUELAYER_CLIENT_ID && process.env.TRUELAYER_CLIENT_SECRET
+    ? new TrueLayerAdapter({
+        clientId: process.env.TRUELAYER_CLIENT_ID,
+        clientSecret: process.env.TRUELAYER_CLIENT_SECRET,
+        environment:
+          process.env.TRUELAYER_ENVIRONMENT === 'live' ? 'live' : 'sandbox'
+      })
+    : new MockAggregatorAdapter();
 
 // Translates the adapter's domain errors (UC1's alternate flows: unsupported
 // bank, denied SCA/TAN) into the HTTP status codes the landlord frontend
@@ -90,6 +103,7 @@ export async function completeConnection(
     {
       provider: adapter.provider,
       accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
       consentExpiryDate: result.consentExpiryDate
     },
     Crypto.encrypt
@@ -215,11 +229,34 @@ export async function syncBankAccount(
   }
 
   const accessToken = Crypto.decrypt(bankAccount.encryptedAccessToken);
-  const aggregatorTransactions = await adapter.listTransactions({
-    accessToken,
-    aggregatorAccountId: bankAccount.aggregatorAccountId,
-    since: bankAccount.lastSyncDate
-  });
+  const refreshToken = bankAccount.encryptedRefreshToken
+    ? Crypto.decrypt(bankAccount.encryptedRefreshToken)
+    : undefined;
+
+  let aggregatorTransactions;
+  try {
+    aggregatorTransactions = await adapter.listTransactions({
+      accessToken,
+      refreshToken,
+      aggregatorAccountId: bankAccount.aggregatorAccountId,
+      since: bankAccount.lastSyncDate,
+      onTokensRefreshed: (tokens) => {
+        bankAccount.encryptedAccessToken = Crypto.encrypt(tokens.accessToken);
+        if (tokens.refreshToken) {
+          bankAccount.encryptedRefreshToken = Crypto.encrypt(
+            tokens.refreshToken
+          );
+        }
+      }
+    });
+  } catch (error) {
+    if (error instanceof ConsentDeniedError) {
+      bankAccount.status = 'reauth_required';
+      await bankAccount.save();
+      return;
+    }
+    throw error;
+  }
 
   const records = toTransactionRecords(
     String(bankAccount.realmId),
@@ -279,4 +316,78 @@ export async function syncAccount(req: Express.Request, res: Express.Response) {
   await syncBankAccount(bankAccount);
 
   res.json(stripSecrets(bankAccount.toObject()));
+}
+
+// On-demand account balance (UC1): mirrors syncAccount's reauth handling
+// (consent-expiry check up front, ConsentDeniedError caught mid-call) and,
+// like syncAccount, caps how often this DB-and-aggregator-accessing route can
+// be repeated per account using the account's own persisted timestamp as the
+// clock (CodeQL flagged the equivalent unrate-limited sync route previously -
+// see commit 140bb06 - same fix applied here).
+export async function getBalance(req: Express.Request, res: Express.Response) {
+  const request = req as ServiceRequest;
+  const bankAccount = await Collections.BankAccount.findOne({
+    _id: req.params.id,
+    realmId: request.realm?._id
+  });
+
+  if (!bankAccount) {
+    return res.sendStatus(404);
+  }
+
+  if (
+    bankAccount.lastBalanceFetchDate &&
+    Date.now() - bankAccount.lastBalanceFetchDate.getTime() <
+      MIN_SYNC_INTERVAL_MS
+  ) {
+    return res.status(429).json({ message: 'balance requested too recently' });
+  }
+
+  const now = new Date();
+  const status = nextStatusAfterSyncAttempt(
+    bankAccount.status,
+    bankAccount.consentExpiryDate,
+    now
+  );
+
+  if (status === 'reauth_required') {
+    bankAccount.status = status;
+    await bankAccount.save();
+    return res.json(stripSecrets(bankAccount.toObject()));
+  }
+
+  const accessToken = Crypto.decrypt(bankAccount.encryptedAccessToken);
+  const refreshToken = bankAccount.encryptedRefreshToken
+    ? Crypto.decrypt(bankAccount.encryptedRefreshToken)
+    : undefined;
+
+  try {
+    const balance = await adapter.getBalance({
+      accessToken,
+      refreshToken,
+      aggregatorAccountId: bankAccount.aggregatorAccountId,
+      onTokensRefreshed: (tokens) => {
+        bankAccount.encryptedAccessToken = Crypto.encrypt(tokens.accessToken);
+        if (tokens.refreshToken) {
+          bankAccount.encryptedRefreshToken = Crypto.encrypt(
+            tokens.refreshToken
+          );
+        }
+      }
+    });
+
+    bankAccount.status = status;
+    bankAccount.lastBalanceFetchDate = now;
+    await bankAccount.save();
+
+    res.json({ ...balance, bankAccount: stripSecrets(bankAccount.toObject()) });
+  } catch (error) {
+    if (error instanceof ConsentDeniedError) {
+      bankAccount.status = 'reauth_required';
+      bankAccount.lastBalanceFetchDate = now;
+      await bankAccount.save();
+      return res.json(stripSecrets(bankAccount.toObject()));
+    }
+    throw error;
+  }
 }

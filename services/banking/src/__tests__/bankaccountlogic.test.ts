@@ -48,6 +48,33 @@ describe('toBankAccountRecords', () => {
     });
     // the raw token must never be persisted, only the encrypted form
     expect(records[0].encryptedAccessToken).toBe('ENCRYPTED(raw-access-token)');
+    // no refresh token was present on the connection result (e.g. the mock
+    // adapter), so nothing should be persisted for it either
+    expect(records[0].encryptedRefreshToken).toBeUndefined();
+  });
+
+  it('encrypts and persists the refresh token when the connection result carries one (e.g. TrueLayer)', () => {
+    const records = toBankAccountRecords(
+      'realm-1',
+      'truelayer',
+      { ...connectionResult, refreshToken: 'raw-refresh-token' },
+      [
+        {
+          aggregatorAccountId: 'acc-1',
+          iban: 'DE89370400440532013000',
+          bankName: 'Mockbank AG',
+          accountHolder: 'Demo Landlord',
+          propertyIds: ['prop-1']
+        }
+      ],
+      encrypt,
+      now
+    );
+
+    expect(records[0].encryptedAccessToken).toBe('ENCRYPTED(raw-access-token)');
+    expect(records[0].encryptedRefreshToken).toBe(
+      'ENCRYPTED(raw-refresh-token)'
+    );
   });
 
   it('maps several selected accounts from the same connection', () => {
@@ -244,6 +271,7 @@ describe('stripSecrets', () => {
     bankName: 'Mockbank AG',
     accountHolder: 'Demo Landlord',
     encryptedAccessToken: 'super-secret-encrypted-token',
+    encryptedRefreshToken: 'super-secret-encrypted-refresh-token',
     consentGivenDate: new Date('2026-07-12T00:00:00Z'),
     consentExpiryDate: new Date('2026-10-10T00:00:00Z'),
     status: 'connected' as const,
@@ -256,6 +284,13 @@ describe('stripSecrets', () => {
 
     expect(stripped).not.toHaveProperty('encryptedAccessToken');
     expect(Object.keys(stripped)).not.toContain('encryptedAccessToken');
+  });
+
+  it('removes the encrypted refresh token from the returned object when present', () => {
+    const stripped = stripSecrets(bankAccount);
+
+    expect(stripped).not.toHaveProperty('encryptedRefreshToken');
+    expect(Object.keys(stripped)).not.toContain('encryptedRefreshToken');
   });
 
   it('keeps every other field untouched', () => {
@@ -294,6 +329,22 @@ describe('serializeConnectionToken / parseConnectionToken', () => {
 
     const token = serializeConnectionToken(payload, encrypt);
     expect(token).not.toContain('raw-access-token');
+
+    const parsed = parseConnectionToken(token, decrypt);
+    expect(parsed).toEqual(payload);
+  });
+
+  it('round-trips a connection payload that includes a refresh token (e.g. TrueLayer)', () => {
+    const payload = {
+      provider: 'truelayer',
+      accessToken: 'raw-access-token',
+      refreshToken: 'raw-refresh-token',
+      consentExpiryDate: new Date('2026-10-10T00:00:00Z')
+    };
+
+    const token = serializeConnectionToken(payload, encrypt);
+    expect(token).not.toContain('raw-access-token');
+    expect(token).not.toContain('raw-refresh-token');
 
     const parsed = parseConnectionToken(token, decrypt);
     expect(parsed).toEqual(payload);
