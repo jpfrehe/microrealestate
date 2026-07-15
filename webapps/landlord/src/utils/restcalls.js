@@ -11,6 +11,9 @@ export const QueryKeys = {
   BANKS: 'banks',
   BANK_ACCOUNTS: 'bankAccounts',
   TRANSACTIONS: 'transactions',
+  CASHFLOW: 'cashflow',
+  LOANS: 'loans',
+  DEPRECIATIONS: 'depreciations',
   EXPENSES: 'expenses',
   DATEV_PREVIEW: 'datevPreview'
 };
@@ -91,6 +94,21 @@ export async function fetchBankAccounts(store) {
 
 export async function fetchTransactions(store, status) {
   const response = await store.banking.fetchTransactions(status);
+  return response.data;
+}
+
+export async function fetchCashflow(store, month, propertyId) {
+  const response = await store.cashflow.fetch(month, propertyId);
+  return response.data;
+}
+
+export async function fetchLoans(store, propertyId) {
+  const response = await store.cashflow.fetchLoans(propertyId);
+  return response.data;
+}
+
+export async function fetchDepreciations(store, propertyId) {
+  const response = await store.cashflow.fetchDepreciations(propertyId);
   return response.data;
 }
 

@@ -1,9 +1,11 @@
 import {
   BankAccountStatus,
+  CashflowCategory,
   ExpenseCategory,
   ExpenseSource,
   LeaseTimeRange,
   Locale,
+  LoanStatus,
   PaymentMethod,
   TransactionMatchStatus,
   UserRole
@@ -333,6 +335,11 @@ export namespace CollectionTypes {
     matchCandidates: CollectionTypes.TransactionMatchCandidate[];
     matchedTenantId?: string;
     matchedTerm?: number;
+    // cashflow analysis: only set when the landlord overrides the automatic
+    // categorization, otherwise the category is derived at read time
+    category?: CashflowCategory;
+    categorySource?: 'manual';
+    loanId?: string;
     createdDate: Date;
     updatedDate: Date;
   };
@@ -348,6 +355,40 @@ export namespace CollectionTypes {
     documentId?: string;
     source: ExpenseSource;
     transactionId?: string;
+    createdDate: Date;
+    updatedDate: Date;
+  };
+
+  // Cashflow analysis (see system.md roadmap UC3)
+  export type Loan = {
+    _id: string;
+    realmId: string;
+    propertyId: string;
+    name: string;
+    lender: string;
+    // the counterparty account the rate is debited from: strongest signal to
+    // recognize a loan rate in the bank transactions
+    lenderIban?: string;
+    principalAmount: number;
+    interestRate: number; // nominal rate per year, in percent
+    monthlyRate: number; // annuity (interest + principal), debited monthly
+    startDate: Date;
+    endDate?: Date; // optional: without it the loan runs until the debt is repaid
+    status: LoanStatus;
+    createdDate: Date;
+    updatedDate: Date;
+  };
+
+  export type Depreciation = {
+    _id: string;
+    realmId: string;
+    propertyId: string;
+    name: string;
+    // the land share is not depreciable, so this is the building share only
+    baseAmount: number;
+    rate: number; // depreciation rate per year, in percent
+    startDate: Date;
+    durationYears: number;
     createdDate: Date;
     updatedDate: Date;
   };

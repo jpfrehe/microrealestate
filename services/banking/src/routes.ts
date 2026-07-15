@@ -1,4 +1,7 @@
 import * as bankAccountManager from './managers/bankaccountmanager.js';
+import * as cashflowManager from './managers/cashflowmanager.js';
+import * as depreciationManager from './managers/depreciationmanager.js';
+import * as loanManager from './managers/loanmanager.js';
 import * as matchingManager from './managers/matchingmanager.js';
 import { Middlewares, Service } from '@microrealestate/common';
 import express from 'express';
@@ -79,7 +82,46 @@ export default function routes() {
     '/:id/ignore',
     Middlewares.asyncWrapper(matchingManager.ignoreTransaction)
   );
+  transactionsRouter.patch(
+    '/:id/category',
+    Middlewares.asyncWrapper(cashflowManager.updateTransactionCategory)
+  );
   router.use('/transactions', transactionsRouter);
+
+  router.get(
+    '/cashflow',
+    Middlewares.asyncWrapper(cashflowManager.getCashflow)
+  );
+
+  const loansRouter = express.Router();
+  loansRouter.get('/', Middlewares.asyncWrapper(loanManager.listLoans));
+  loansRouter.post('/', Middlewares.asyncWrapper(loanManager.createLoan));
+  loansRouter.patch('/:id', Middlewares.asyncWrapper(loanManager.updateLoan));
+  loansRouter.delete('/:id', Middlewares.asyncWrapper(loanManager.deleteLoan));
+  loansRouter.get(
+    '/:id/schedule',
+    Middlewares.asyncWrapper(loanManager.getSchedule)
+  );
+  router.use('/loans', loansRouter);
+
+  const depreciationsRouter = express.Router();
+  depreciationsRouter.get(
+    '/',
+    Middlewares.asyncWrapper(depreciationManager.listDepreciations)
+  );
+  depreciationsRouter.post(
+    '/',
+    Middlewares.asyncWrapper(depreciationManager.createDepreciation)
+  );
+  depreciationsRouter.patch(
+    '/:id',
+    Middlewares.asyncWrapper(depreciationManager.updateDepreciation)
+  );
+  depreciationsRouter.delete(
+    '/:id',
+    Middlewares.asyncWrapper(depreciationManager.deleteDepreciation)
+  );
+  router.use('/depreciations', depreciationsRouter);
 
   const bankingRouter = express.Router();
   bankingRouter.use('/banking', router);

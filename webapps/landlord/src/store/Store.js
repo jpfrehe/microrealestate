@@ -4,6 +4,7 @@ import { setAccessToken, setOrganizationId } from '../utils/fetch';
 import Accounting from './Accounting';
 import AppHistory from './AppHistory';
 import Banking from './Banking';
+import Cashflow from './Cashflow';
 import Dashboard from './Dashboard';
 import Document from './Document';
 import Expense from './Expense';
@@ -30,6 +31,7 @@ export default class Store {
     this.dashboard = new Dashboard();
     this.accounting = new Accounting();
     this.banking = new Banking();
+    this.cashflow = new Cashflow();
     this.expense = new Expense();
 
     makeObservable(this, {
@@ -44,6 +46,7 @@ export default class Store {
       dashboard: observable,
       accounting: observable,
       banking: observable,
+      cashflow: observable,
       expense: observable,
       appHistory: observable
     });
@@ -88,6 +91,11 @@ export default class Store {
         banks: [],
         accounts: [],
         transactions: []
+      },
+      cashflow = {
+        data: {},
+        loans: [],
+        depreciations: []
       },
       expense = {
         items: []
@@ -148,6 +156,10 @@ export default class Store {
     this.banking.banks = banking.banks;
     this.banking.accounts = banking.accounts;
     this.banking.transactions = banking.transactions;
+
+    this.cashflow.data = cashflow.data;
+    this.cashflow.loans = cashflow.loans;
+    this.cashflow.depreciations = cashflow.depreciations;
 
     this.expense.items = expense.items;
 
