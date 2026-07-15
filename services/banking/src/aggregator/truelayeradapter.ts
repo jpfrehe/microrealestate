@@ -319,10 +319,14 @@ export default class TrueLayerAdapter implements AggregatorAdapter {
 
   async listSupportedBanks(): Promise<SupportedBank[]> {
     const query = new URLSearchParams({ clientId: this.clientId });
-    const response = await this.httpClient.get<{ results?: RawProvider[] }>(
+    // TrueLayer's /api/providers responds with a bare JSON array, unlike
+    // its other endpoints which wrap results in an envelope object -
+    // verified against the live sandbox API (docs.truelayer.com's page for
+    // this endpoint is interactive and didn't scrape cleanly).
+    const response = await this.httpClient.get<RawProvider[]>(
       `${this.authBaseUrl}/api/providers?${query.toString()}`
     );
-    return (response.data?.results ?? []).map(parseProvider);
+    return (response.data ?? []).map(parseProvider);
   }
 
   async initiateConnection({

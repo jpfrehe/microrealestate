@@ -44,12 +44,10 @@ describe('TrueLayerAdapter', () => {
     it('maps the providers response to bankId/name pairs', async () => {
       const httpClient = createHttpClient();
       httpClient.get.mockResolvedValueOnce({
-        data: {
-          results: [
-            { provider_id: 'ob-mockbank', display_name: 'Mock Bank' },
-            { provider_id: 'ob-testbank', display_name: 'Test Bank' }
-          ]
-        }
+        data: [
+          { provider_id: 'ob-mockbank', display_name: 'Mock Bank' },
+          { provider_id: 'ob-testbank', display_name: 'Test Bank' }
+        ]
       });
       const adapter = createAdapter(httpClient);
 
