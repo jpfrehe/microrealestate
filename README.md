@@ -53,6 +53,18 @@ Update the secrets and tokens in the `.env` file (at the end of the file).
 In case you previously ran the application, the secrets, the tokens and the MONGO_URL must be reported from previous .env file to the new one.
 Otherwise, the application will not point to the correct database and will not be able to login with the previous credentials.
 
+### Bank account connection (optional)
+
+To let landlords connect a real bank account and automatically import transactions, provision a client at the [TrueLayer console](https://console.truelayer.com) and set the following in the `.env` file:
+
+```
+TRUELAYER_CLIENT_ID=your_truelayer_client_id
+TRUELAYER_CLIENT_SECRET=your_truelayer_client_secret
+TRUELAYER_ENVIRONMENT=sandbox   # 'sandbox' or 'live' - defaults to 'sandbox' when unset
+```
+
+`TRUELAYER_CLIENT_SECRET` is a secret and must be handled like the other tokens in the `.env` file (never committed). Without these variables, the banking service falls back to a deterministic mock provider so the connect/sync flow still runs without live bank credentials.
+
 ### Localhost setup
 
 Start the application under localhost:
