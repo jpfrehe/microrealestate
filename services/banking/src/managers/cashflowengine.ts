@@ -128,8 +128,20 @@ export type CashflowTransaction = {
 export type SankeyNodeGroup = CashflowCategoryGroup | 'gap' | 'total' | 'net';
 
 export type SankeyNode = {
+  // Unique per side, not per category: a category can be an inflow and an
+  // outflow in the same month (an insurance premium paid and part of it
+  // refunded), and giving both the same node would join them into a cycle -
+  // which a sankey cannot draw. Hence the in:/out: prefix.
   key: string;
-  name: string; // == key: an i18n key, the frontend translates it
+  name: string; // an i18n key, the frontend translates it - not unique
+  group: SankeyNodeGroup;
+};
+
+// A node is addressed by its key; name defaults to it for the hub nodes, whose
+// key is already the i18n key.
+type SankeyNodeSpec = {
+  key: string;
+  name?: string;
   group: SankeyNodeGroup;
 };
 
@@ -312,6 +324,22 @@ const KEYWORD_RULES: { category: CashflowCategory; keywords: string[] }[] = [
     category: 'deposit',
     keywords: ['kaution', 'mietkaution', 'deposit']
   },
+  // Before utilities on purpose: these name an act done to the building, while
+  // the utilities keywords name a thing consumed - and the thing is usually
+  // named too ("Handwerker Reparatur Heizung", "Wartung Gastherme"). Matching
+  // utilities first would book every repair as a running cost and, worse, put
+  // it in the wrong place in the landlord's tax figures.
+  {
+    category: 'maintenance',
+    keywords: [
+      'instandhaltung',
+      'reparatur',
+      'handwerker',
+      'sanierung',
+      'wartung',
+      'maintenance'
+    ]
+  },
   {
     category: 'utilities',
     keywords: [
@@ -350,17 +378,6 @@ const KEYWORD_RULES: { category: CashflowCategory; keywords: string[] }[] = [
   {
     category: 'property_tax',
     keywords: ['grundsteuer', 'grundabgaben', 'property tax']
-  },
-  {
-    category: 'maintenance',
-    keywords: [
-      'instandhaltung',
-      'reparatur',
-      'handwerker',
-      'sanierung',
-      'wartung',
-      'maintenance'
-    ]
   }
 ];
 
@@ -524,27 +541,31 @@ export function buildSankeyGraph(
   const nodes: SankeyNode[] = [];
   const links: SankeyLink[] = [];
 
-  const nodeIndexOf = (key: string, group: SankeyNodeGroup): number => {
-    const existing = nodes.findIndex((node) => node.key === key);
+  const nodeIndexOf = (spec: SankeyNodeSpec): number => {
+    const existing = nodes.findIndex((node) => node.key === spec.key);
     if (existing >= 0) {
       return existing;
     }
-    nodes.push({ key, name: key, group });
+    nodes.push({
+      key: spec.key,
+      name: spec.name ?? spec.key,
+      group: spec.group
+    });
     return nodes.length - 1;
   };
   // BR-14c: a zero link is dropped, and with it the node that would only hang
   // off it - hence the node is created lazily, from inside the link.
   const link = (
-    source: { key: string; group: SankeyNodeGroup },
-    target: { key: string; group: SankeyNodeGroup },
+    source: SankeyNodeSpec,
+    target: SankeyNodeSpec,
     value: number
   ): void => {
     if (value <= 0) {
       return;
     }
     links.push({
-      source: nodeIndexOf(source.key, source.group),
-      target: nodeIndexOf(target.key, target.group),
+      source: nodeIndexOf(source),
+      target: nodeIndexOf(target),
       value: round2(value)
     });
   };
@@ -560,7 +581,15 @@ export function buildSankeyGraph(
         entry.category !== 'deposit'
     )
     .forEach((entry) =>
-      link({ key: entry.category, group: entry.group }, total, entry.total)
+      link(
+        {
+          key: `in:${entry.category}`,
+          name: entry.category,
+          group: entry.group
+        },
+        total,
+        entry.total
+      )
     );
 
   // BR-14a: the loan rate leaves as two flows - only the interest is an
@@ -584,7 +613,15 @@ export function buildSankeyGraph(
         entry.category !== 'deposit'
     )
     .forEach((entry) =>
-      link(total, { key: entry.category, group: 'expense' }, entry.total)
+      link(
+        total,
+        {
+          key: `out:${entry.category}`,
+          name: entry.category,
+          group: 'expense'
+        },
+        entry.total
+      )
     );
 
   // What is left over after the outflows. With the non-cash block attached

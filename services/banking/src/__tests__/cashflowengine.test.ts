@@ -731,7 +731,17 @@ describe('categorizeTransaction', () => {
       ['Grundsteuer Q3 2026 Musterstr. 12', 'property_tax'],
       ['Instandhaltung Dach Musterstr. 12', 'maintenance'],
       ['Handwerker Rechnung 4711', 'maintenance'],
-      ['Mietkaution Musterstr. 12 App 3B', 'deposit']
+      ['Mietkaution Musterstr. 12 App 3B', 'deposit'],
+      // A repair names the thing repaired, so both rule sets hit and the order
+      // decides. Found by driving the real page: these all booked as utilities,
+      // which is the wrong bucket for the landlord's tax figures.
+      ['Handwerker Reparatur Heizung', 'maintenance'],
+      ['Wartung Gastherme Musterstr. 12', 'maintenance'],
+      ['Reparatur Wasserschaden App 3B', 'maintenance'],
+      ['Sanierung Bad - Handwerker Strom- und Wasseranschluss', 'maintenance'],
+      // ... while a plain consumption bill still is a running cost
+      ['Stadtwerke Musterstadt Abschlag Strom 07/2026', 'utilities'],
+      ['Heizung Jahresabrechnung 2026', 'utilities']
     ])('categorizes "%s" as %s', (remittanceInformation, category) => {
       const result = categorizeTransaction(
         bankTransaction({ amount: -150, remittanceInformation }),
@@ -1338,9 +1348,9 @@ describe('computeCashflowAnalysis', () => {
   it('builds the sankey graph as part of the analysis (AE-3)', () => {
     const { sankey } = computeCashflowAnalysis(standardInput);
 
-    expect(nodeIndex(sankey, 'rent')).toBeGreaterThanOrEqual(0);
+    expect(nodeIndex(sankey, 'in:rent')).toBeGreaterThanOrEqual(0);
     expect(nodeIndex(sankey, 'loan_interest')).toBeGreaterThanOrEqual(0);
-    expect(linkValue(sankey, 'rent', 'total')).toBe(1250);
+    expect(linkValue(sankey, 'in:rent', 'total')).toBe(1250);
   });
 });
 
@@ -1377,8 +1387,8 @@ describe('buildSankeyGraph', () => {
   it('routes every income category through the "total" node into the expenses (three stages)', () => {
     const graph = buildSankeyGraph(cashOnlySummary, cashOnlyCategories);
 
-    expect(linkValue(graph, 'rent', 'total')).toBe(1250);
-    expect(linkValue(graph, 'total', 'utilities')).toBe(150);
+    expect(linkValue(graph, 'in:rent', 'total')).toBe(1250);
+    expect(linkValue(graph, 'total', 'out:utilities')).toBe(150);
     expect(linkValue(graph, 'total', 'net_cashflow')).toBe(300);
   });
 
@@ -1396,7 +1406,7 @@ describe('buildSankeyGraph', () => {
     // expense, the principal builds equity
     expect(linkValue(graph, 'total', 'loan_interest')).toBe(300);
     expect(linkValue(graph, 'total', 'loan_principal')).toBe(500);
-    expect(nodeIndex(graph, 'loan_rate')).toBe(-1);
+    expect(nodeIndex(graph, 'out:loan_rate')).toBe(-1);
     expect(graph.nodes[nodeIndex(graph, 'loan_interest')].group).toBe(
       'expense'
     );
@@ -1423,8 +1433,10 @@ describe('buildSankeyGraph', () => {
       ]
     );
 
-    expect(linkValue(graph, 'depreciation', 'total')).toBe(1000);
-    expect(graph.nodes[nodeIndex(graph, 'depreciation')].group).toBe('noncash');
+    expect(linkValue(graph, 'in:depreciation', 'total')).toBe(1000);
+    expect(graph.nodes[nodeIndex(graph, 'in:depreciation')].group).toBe(
+      'noncash'
+    );
     // the graph stays balanced even with the non-cash block attached
     expect(sumLinksInto(graph, 'total')).toBeCloseTo(
       sumLinksOutOf(graph, 'total'),
@@ -1502,7 +1514,7 @@ describe('buildSankeyGraph', () => {
       }
     ]);
 
-    expect(nodeIndex(graph, 'maintenance')).toBe(-1);
+    expect(nodeIndex(graph, 'out:maintenance')).toBe(-1);
     expect(graph.links.every((link) => link.value > 0)).toBe(true);
   });
 
@@ -1547,7 +1559,8 @@ describe('buildSankeyGraph', () => {
       ]
     );
 
-    expect(nodeIndex(graph, 'deposit')).toBe(-1);
+    expect(nodeIndex(graph, 'out:deposit')).toBe(-1);
+    expect(nodeIndex(graph, 'in:deposit')).toBe(-1);
     expect(sumLinksInto(graph, 'total')).toBeCloseTo(1250, 2);
   });
 
@@ -1576,7 +1589,7 @@ describe('buildSankeyGraph', () => {
       ]
     );
 
-    expect(linkValue(graph, 'total', 'uncategorized')).toBe(75);
+    expect(linkValue(graph, 'total', 'out:uncategorized')).toBe(75);
   });
 
   it('returns an empty graph when there is nothing to show (BR-14d)', () => {
@@ -1586,7 +1599,104 @@ describe('buildSankeyGraph', () => {
   it('names the nodes with the untranslated i18n key, the frontend translates', () => {
     const graph = buildSankeyGraph(cashOnlySummary, cashOnlyCategories);
 
-    expect(graph.nodes.every((node) => node.name === node.key)).toBe(true);
+    expect(graph.nodes.map((node) => node.name).sort()).toEqual([
+      'loan_interest',
+      'loan_principal',
+      'net_cashflow',
+      'rent',
+      'total',
+      'utilities'
+    ]);
+    expect(new Set(graph.nodes.map((node) => node.key)).size).toBe(
+      graph.nodes.length
+    );
+  });
+
+  // Found by driving the real page: an insurance premium and a partial refund
+  // in the same month gave the category a node on both sides of the hub, which
+  // is a cycle - recharts threw and took the whole page down with it.
+  it('keeps a category that is both an inflow and an outflow on two separate nodes', () => {
+    const graph = buildSankeyGraph(
+      summaryOf({
+        totalIncome: 980,
+        totalExpenses: 60,
+        operatingCashflow: 920,
+        taxableResult: 920
+      }),
+      [
+        {
+          category: 'rent' as const,
+          group: 'income' as const,
+          total: 950,
+          count: 1
+        },
+        // the refund: an expense category arriving as income (BR-13a)
+        {
+          category: 'insurance' as const,
+          group: 'income' as const,
+          total: 30,
+          count: 1
+        },
+        {
+          category: 'insurance' as const,
+          group: 'expense' as const,
+          total: 60,
+          count: 1
+        }
+      ]
+    );
+
+    expect(linkValue(graph, 'in:insurance', 'total')).toBe(30);
+    expect(linkValue(graph, 'total', 'out:insurance')).toBe(60);
+    expect(graph.nodes[nodeIndex(graph, 'in:insurance')].group).toBe('income');
+    expect(graph.nodes[nodeIndex(graph, 'out:insurance')].group).toBe(
+      'expense'
+    );
+    // both still translate to the same label
+    expect(graph.nodes[nodeIndex(graph, 'in:insurance')].name).toBe(
+      'insurance'
+    );
+    expect(graph.nodes[nodeIndex(graph, 'out:insurance')].name).toBe(
+      'insurance'
+    );
+  });
+
+  it('never draws a cycle - every link runs source -> total -> sink', () => {
+    const graph = buildSankeyGraph(
+      summaryOf({
+        totalIncome: 980,
+        totalExpenses: 60,
+        operatingCashflow: 920,
+        taxableResult: 920
+      }),
+      [
+        {
+          category: 'rent' as const,
+          group: 'income' as const,
+          total: 950,
+          count: 1
+        },
+        {
+          category: 'insurance' as const,
+          group: 'income' as const,
+          total: 30,
+          count: 1
+        },
+        {
+          category: 'insurance' as const,
+          group: 'expense' as const,
+          total: 60,
+          count: 1
+        }
+      ]
+    );
+
+    const seen = new Set(
+      graph.links.map((link) => `${link.source}->${link.target}`)
+    );
+    graph.links.forEach((link) => {
+      expect(seen.has(`${link.target}->${link.source}`)).toBe(false);
+    });
   });
 
   it('references the nodes by numeric index, as recharts requires', () => {
