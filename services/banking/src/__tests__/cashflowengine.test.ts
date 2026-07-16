@@ -9,6 +9,7 @@ import {
   DepreciationInput,
   getLoanRateForMonth,
   LoanInput,
+  toCashflowCategory,
   TransactionInput
 } from '../managers/cashflowengine.js';
 
@@ -122,6 +123,36 @@ function sumLinksOutOf(graph: SankeyGraph, key: string): number {
     .filter((link) => link.source === source)
     .reduce((sum, link) => sum + link.value, 0);
 }
+
+describe('toCashflowCategory', () => {
+  it('resolves a known category to the constant from the engine table', () => {
+    expect(toCashflowCategory('loan_rate')).toBe('loan_rate');
+    expect(toCashflowCategory('uncategorized')).toBe('uncategorized');
+  });
+
+  it('rejects anything that is not a known category', () => {
+    expect(toCashflowCategory('nonsense')).toBeNull();
+    expect(toCashflowCategory('')).toBeNull();
+    expect(toCashflowCategory(undefined)).toBeNull();
+    expect(toCashflowCategory(null)).toBeNull();
+    expect(toCashflowCategory(42)).toBeNull();
+  });
+
+  // The landlord's override is persisted, so this value reaches a Mongo update.
+  // A non-string must never survive: an operator object would otherwise be
+  // written into the update document.
+  it('rejects a non-string that would smuggle a query operator into the update', () => {
+    expect(toCashflowCategory({ $ne: null })).toBeNull();
+    expect(toCashflowCategory(['rent'])).toBeNull();
+    expect(toCashflowCategory({ toString: () => 'rent' })).toBeNull();
+  });
+
+  it('does not resolve an inherited Object property', () => {
+    expect(toCashflowCategory('constructor')).toBeNull();
+    expect(toCashflowCategory('toString')).toBeNull();
+    expect(toCashflowCategory('__proto__')).toBeNull();
+  });
+});
 
 describe('buildAmortizationSchedule', () => {
   it('splits every rate into interest on the remaining debt and principal (BR-7, BR-8)', () => {

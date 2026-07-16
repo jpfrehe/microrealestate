@@ -187,24 +187,35 @@ const LOAN_RATE_TOLERANCE_FLOOR = 1;
 // Keyed by the union rather than listed as an array, so a new category cannot
 // be introduced without the compiler pointing here - the API validates a
 // landlord's override against this.
-const CATEGORY_KEYS: Record<CashflowCategory, true> = {
-  rent: true,
-  service_charge: true,
-  deposit: true,
-  other_income: true,
-  loan_rate: true,
-  utilities: true,
-  property_management: true,
-  maintenance: true,
-  insurance: true,
-  property_tax: true,
-  other_expense: true,
-  depreciation: true,
-  uncategorized: true
+const CATEGORY_KEYS: Record<CashflowCategory, CashflowCategory> = {
+  rent: 'rent',
+  service_charge: 'service_charge',
+  deposit: 'deposit',
+  other_income: 'other_income',
+  loan_rate: 'loan_rate',
+  utilities: 'utilities',
+  property_management: 'property_management',
+  maintenance: 'maintenance',
+  insurance: 'insurance',
+  property_tax: 'property_tax',
+  other_expense: 'other_expense',
+  depreciation: 'depreciation',
+  uncategorized: 'uncategorized'
 };
 
-export function isCashflowCategory(value: unknown): value is CashflowCategory {
-  return typeof value === 'string' && value in CATEGORY_KEYS;
+// Resolves an untrusted value to the matching category *from this table*, or
+// null. Returning the table's own constant rather than the caller's value is
+// what makes the override safe to hand to Mongo: whatever shape the request
+// body had, what gets stored is a string this module owns.
+//
+// hasOwn, not `in`: `in` walks the prototype chain, so it answers true for
+// 'constructor', 'toString' and '__proto__', which would let those through as
+// if they were categories.
+export function toCashflowCategory(value: unknown): CashflowCategory | null {
+  return typeof value === 'string' &&
+    Object.prototype.hasOwnProperty.call(CATEGORY_KEYS, value)
+    ? CATEGORY_KEYS[value as CashflowCategory]
+    : null;
 }
 
 function round2(amount: number): number {

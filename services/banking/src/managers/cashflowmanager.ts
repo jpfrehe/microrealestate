@@ -3,7 +3,7 @@ import { Collections, ServiceError } from '@microrealestate/common';
 import { CollectionTypes, ServiceRequest } from '@microrealestate/types';
 import {
   computeCashflowAnalysis,
-  isCashflowCategory,
+  toCashflowCategory,
   TransactionInput
 } from './cashflowengine.js';
 import moment from 'moment';
@@ -129,7 +129,11 @@ export async function updateTransactionCategory(
   const transactionId = readObjectIdParam(req.params.id);
   const { category, loanId } = req.body;
 
-  if (category !== null && !isCashflowCategory(category)) {
+  // resolved to our own constant, so the value written below is never the
+  // request's - see toCashflowCategory
+  const overrideCategory =
+    category === null ? null : toCashflowCategory(category);
+  if (category !== null && overrideCategory === null) {
     throw new ServiceError('category is not a known cashflow category', 422);
   }
 
@@ -144,19 +148,19 @@ export async function updateTransactionCategory(
   // a loanId only carries meaning on a loan rate, and an override to any other
   // category has to drop the one the automatic detection may have left behind
   const linkedLoanId =
-    category === 'loan_rate' && loanId != null
+    overrideCategory === 'loan_rate' && loanId != null
       ? await assertLoanInRealm(realmId, loanId)
       : null;
 
   const transaction = await Collections.Transaction.findOneAndUpdate(
     { _id: transactionId, realmId },
-    category === null
+    overrideCategory === null
       ? {
           updatedDate: new Date(),
           $unset: { category: 1, categorySource: 1, loanId: 1 }
         }
       : {
-          category,
+          category: overrideCategory,
           categorySource: 'manual',
           updatedDate: new Date(),
           ...(linkedLoanId
