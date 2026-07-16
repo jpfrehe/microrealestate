@@ -33,3 +33,31 @@ export type ExpenseCategory =
   | 'loan_interest'
   | 'other';
 export type ExpenseSource = 'manual' | 'bank_transaction';
+
+// Cashflow analysis (see system.md roadmap UC3)
+export type CashflowCategory =
+  | 'rent'
+  | 'service_charge'
+  | 'deposit' // pass-through item held in trust, never an income
+  | 'other_income'
+  | 'loan_rate' // annuity, split into interest and principal for the taxable result
+  | 'utilities'
+  | 'property_management'
+  | 'maintenance'
+  | 'insurance'
+  | 'property_tax'
+  | 'other_expense'
+  | 'depreciation' // computed from the Depreciation entity, not from a bank transaction
+  | 'uncategorized'; // no reliable signal, never guessed
+export type CashflowCategoryGroup =
+  | 'income'
+  | 'expense'
+  | 'noncash' // depreciation: lowers the taxable result without touching the bank balance
+  | 'neutral'; // deposits: excluded from both income and the taxable result
+export type CashflowCategorySource =
+  | 'manual' // landlord override persisted on the transaction, wins over everything
+  | 'match' // confirmed by the matching engine
+  | 'loan' // counterparty iban or remittance points at a Loan
+  | 'rule' // keyword hit on the normalized remittance information
+  | 'none';
+export type LoanStatus = 'active' | 'closed';

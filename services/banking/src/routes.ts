@@ -1,4 +1,7 @@
 import * as bankAccountManager from './managers/bankaccountmanager.js';
+import * as cashflowManager from './managers/cashflowmanager.js';
+import * as depreciationManager from './managers/depreciationmanager.js';
+import * as loanManager from './managers/loanmanager.js';
 import * as matchingManager from './managers/matchingmanager.js';
 import { Middlewares, Service } from '@microrealestate/common';
 import express from 'express';
@@ -11,6 +14,18 @@ import rateLimit from 'express-rate-limit';
 const balanceRateLimiter = rateLimit({
   windowMs: 30 * 1000,
   limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// The cashflow routes read and write straight from Mongo with no per-record
+// cooldown to lean on, so this is their only rate limit (js/missing-rate-limiting).
+// The window is generous because the analysis page legitimately refetches on
+// every month step, property filter and category change - it is meant to stop
+// scripted hammering, not a landlord clicking through their year.
+const cashflowRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -79,7 +94,50 @@ export default function routes() {
     '/:id/ignore',
     Middlewares.asyncWrapper(matchingManager.ignoreTransaction)
   );
+  transactionsRouter.patch(
+    '/:id/category',
+    cashflowRateLimiter,
+    Middlewares.asyncWrapper(cashflowManager.updateTransactionCategory)
+  );
   router.use('/transactions', transactionsRouter);
+
+  router.get(
+    '/cashflow',
+    cashflowRateLimiter,
+    Middlewares.asyncWrapper(cashflowManager.getCashflow)
+  );
+
+  const loansRouter = express.Router();
+  loansRouter.use(cashflowRateLimiter);
+  loansRouter.get('/', Middlewares.asyncWrapper(loanManager.listLoans));
+  loansRouter.post('/', Middlewares.asyncWrapper(loanManager.createLoan));
+  loansRouter.patch('/:id', Middlewares.asyncWrapper(loanManager.updateLoan));
+  loansRouter.delete('/:id', Middlewares.asyncWrapper(loanManager.deleteLoan));
+  loansRouter.get(
+    '/:id/schedule',
+    Middlewares.asyncWrapper(loanManager.getSchedule)
+  );
+  router.use('/loans', loansRouter);
+
+  const depreciationsRouter = express.Router();
+  depreciationsRouter.use(cashflowRateLimiter);
+  depreciationsRouter.get(
+    '/',
+    Middlewares.asyncWrapper(depreciationManager.listDepreciations)
+  );
+  depreciationsRouter.post(
+    '/',
+    Middlewares.asyncWrapper(depreciationManager.createDepreciation)
+  );
+  depreciationsRouter.patch(
+    '/:id',
+    Middlewares.asyncWrapper(depreciationManager.updateDepreciation)
+  );
+  depreciationsRouter.delete(
+    '/:id',
+    Middlewares.asyncWrapper(depreciationManager.deleteDepreciation)
+  );
+  router.use('/depreciations', depreciationsRouter);
 
   const bankingRouter = express.Router();
   bankingRouter.use('/banking', router);

@@ -30,7 +30,10 @@ const AMOUNT_EPSILON = 0.01;
 // diaeresis) - stripping it turns "Müller" into "muller" for matching.
 const COMBINING_DIACRITICAL_MARKS = /[̀-ͯ]/g;
 
-function normalize(text: string): string {
+// Also used by cashflowengine.ts for its keyword rules - the two engines must
+// normalize remittance text identically, otherwise a transaction could match a
+// tenant here and miss the equivalent keyword there.
+export function normalize(text: string): string {
   return text
     .toLowerCase()
     .normalize('NFD')

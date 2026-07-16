@@ -1,5 +1,6 @@
 import BankAccount from './bankaccount.js';
 import { CollectionTypes } from '@microrealestate/types';
+import Loan from './loan.js';
 import mongoose from 'mongoose';
 import Realm from './realm.js';
 
@@ -34,6 +35,32 @@ const TransactionSchema = new mongoose.Schema<CollectionTypes.Transaction>({
   ],
   matchedTenantId: String,
   matchedTerm: Number,
+
+  // cashflow analysis: only persisted when the landlord overrides the automatic
+  // categorization, hence no default - an unset category means "derive it"
+  category: {
+    type: String,
+    enum: [
+      'rent',
+      'service_charge',
+      'deposit',
+      'other_income',
+      'loan_rate',
+      'utilities',
+      'property_management',
+      'maintenance',
+      'insurance',
+      'property_tax',
+      'other_expense',
+      'depreciation',
+      'uncategorized'
+    ]
+  },
+  categorySource: {
+    type: String,
+    enum: ['manual']
+  },
+  loanId: { type: String, ref: Loan },
 
   createdDate: Date,
   updatedDate: Date

@@ -1,4 +1,5 @@
 import {
+  LuGitFork,
   LuInbox,
   LuKeyRound,
   LuLandmark,
@@ -73,6 +74,13 @@ const menuItems = [
     pathname: '/banking',
     Icon: LuLandmark,
     dataCy: 'bankingNav'
+  },
+  {
+    key: 'cashflow',
+    labelId: 'Cashflow analysis',
+    pathname: '/cashflow',
+    Icon: LuGitFork,
+    dataCy: 'cashflowNav'
   },
   {
     key: 'bookingproposals',
