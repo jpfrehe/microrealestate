@@ -4,6 +4,7 @@ import { Collections, ServiceError } from '@microrealestate/common';
 import { CollectionTypes, ServiceRequest } from '@microrealestate/types';
 import moment from 'moment';
 import mongoose from 'mongoose';
+import { readObjectIdParam } from '../utils/params.js';
 
 const MONTH_FORMAT = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -201,7 +202,7 @@ export async function updateLoan(req: Express.Request, res: Express.Response) {
   );
 
   const loan = await Collections.Loan.findOneAndUpdate(
-    { _id: req.params.id, realmId },
+    { _id: readObjectIdParam(req.params.id), realmId },
     {
       ...payload,
       updatedDate: new Date(),
@@ -221,7 +222,7 @@ export async function updateLoan(req: Express.Request, res: Express.Response) {
 export async function deleteLoan(req: Express.Request, res: Express.Response) {
   const request = req as ServiceRequest;
   const { deletedCount } = await Collections.Loan.deleteOne({
-    _id: req.params.id,
+    _id: readObjectIdParam(req.params.id),
     realmId: request.realm?._id
   });
 
@@ -237,7 +238,7 @@ export async function deleteLoan(req: Express.Request, res: Express.Response) {
 export async function getSchedule(req: Express.Request, res: Express.Response) {
   const request = req as ServiceRequest;
   const loan = await Collections.Loan.findOne({
-    _id: req.params.id,
+    _id: readObjectIdParam(req.params.id),
     realmId: request.realm?._id
   }).lean();
 

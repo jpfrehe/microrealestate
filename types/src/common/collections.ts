@@ -4,8 +4,8 @@ import {
   ExpenseCategory,
   ExpenseSource,
   LeaseTimeRange,
-  Locale,
   LoanStatus,
+  Locale,
   PaymentMethod,
   TransactionMatchStatus,
   UserRole

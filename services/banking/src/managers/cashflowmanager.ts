@@ -8,6 +8,7 @@ import {
 } from './cashflowengine.js';
 import moment from 'moment';
 import mongoose from 'mongoose';
+import { readObjectIdParam } from '../utils/params.js';
 import { toDepreciationInput } from './depreciationmanager.js';
 import { toLoanInput } from './loanmanager.js';
 
@@ -125,6 +126,7 @@ export async function updateTransactionCategory(
 ) {
   const request = req as ServiceRequest;
   const realmId = String(request.realm?._id);
+  const transactionId = readObjectIdParam(req.params.id);
   const { category, loanId } = req.body;
 
   if (category !== null && !isCashflowCategory(category)) {
@@ -132,7 +134,7 @@ export async function updateTransactionCategory(
   }
 
   const existing = await Collections.Transaction.findOne({
-    _id: req.params.id,
+    _id: transactionId,
     realmId
   }).lean();
   if (!existing) {
@@ -147,7 +149,7 @@ export async function updateTransactionCategory(
       : null;
 
   const transaction = await Collections.Transaction.findOneAndUpdate(
-    { _id: req.params.id, realmId },
+    { _id: transactionId, realmId },
     category === null
       ? {
           updatedDate: new Date(),

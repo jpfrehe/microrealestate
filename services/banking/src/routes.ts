@@ -18,6 +18,18 @@ const balanceRateLimiter = rateLimit({
   legacyHeaders: false
 });
 
+// The cashflow routes read and write straight from Mongo with no per-record
+// cooldown to lean on, so this is their only rate limit (js/missing-rate-limiting).
+// The window is generous because the analysis page legitimately refetches on
+// every month step, property filter and category change - it is meant to stop
+// scripted hammering, not a landlord clicking through their year.
+const cashflowRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
 export default function routes() {
   const { ACCESS_TOKEN_SECRET } = Service.getInstance().envConfig.getValues();
   const router = express.Router();
@@ -84,16 +96,19 @@ export default function routes() {
   );
   transactionsRouter.patch(
     '/:id/category',
+    cashflowRateLimiter,
     Middlewares.asyncWrapper(cashflowManager.updateTransactionCategory)
   );
   router.use('/transactions', transactionsRouter);
 
   router.get(
     '/cashflow',
+    cashflowRateLimiter,
     Middlewares.asyncWrapper(cashflowManager.getCashflow)
   );
 
   const loansRouter = express.Router();
+  loansRouter.use(cashflowRateLimiter);
   loansRouter.get('/', Middlewares.asyncWrapper(loanManager.listLoans));
   loansRouter.post('/', Middlewares.asyncWrapper(loanManager.createLoan));
   loansRouter.patch('/:id', Middlewares.asyncWrapper(loanManager.updateLoan));
@@ -105,6 +120,7 @@ export default function routes() {
   router.use('/loans', loansRouter);
 
   const depreciationsRouter = express.Router();
+  depreciationsRouter.use(cashflowRateLimiter);
   depreciationsRouter.get(
     '/',
     Middlewares.asyncWrapper(depreciationManager.listDepreciations)

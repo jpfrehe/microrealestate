@@ -3,6 +3,7 @@ import { Collections, ServiceError } from '@microrealestate/common';
 import { CollectionTypes, ServiceRequest } from '@microrealestate/types';
 import { assertPropertyInRealm } from './loanmanager.js';
 import { DepreciationInput } from './cashflowengine.js';
+import { readObjectIdParam } from '../utils/params.js';
 
 type DepreciationPayload = Partial<
   Pick<
@@ -149,7 +150,7 @@ export async function updateDepreciation(
   });
 
   const depreciation = await Collections.Depreciation.findOneAndUpdate(
-    { _id: req.params.id, realmId },
+    { _id: readObjectIdParam(req.params.id), realmId },
     { ...payload, updatedDate: new Date() },
     { new: true }
   ).lean();
@@ -166,7 +167,7 @@ export async function deleteDepreciation(
 ) {
   const request = req as ServiceRequest;
   const { deletedCount } = await Collections.Depreciation.deleteOne({
-    _id: req.params.id,
+    _id: readObjectIdParam(req.params.id),
     realmId: request.realm?._id
   });
 
