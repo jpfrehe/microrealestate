@@ -28,7 +28,7 @@
   },
   "dependencies": {
     "@microrealestate/common": "*",
-    "axios": "1.16.0",
+    "axios": "1.18.0",
     "express-rate-limit": "7.4.1",
     "moment": "2.29.4"
   },
