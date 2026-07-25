@@ -2621,7 +2621,7 @@ __metadata:
     next-translate-plugin: 3.2.0
     pdfjs-dist: 3.11.174
     pigeon-maps: 0.21.3
-    postcss: 8.5.3
+    postcss: 8.5.18
     prop-types: 15.8.1
     react: 18.2.0
     react-awesome-lightbox: 1.8.1
@@ -2728,7 +2728,7 @@ __metadata:
     next: 15.5.18
     next-runtime-env: 3.2.1
     npm-run-all: 4.1.5
-    postcss: 8.5.3
+    postcss: 8.5.18
     react: 18.2.0
     react-day-picker: 8.10.1
     react-dom: 18.2.0
@@ -14666,14 +14666,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"postcss@npm:8.5.3":
-  version: 8.5.3
-  resolution: "postcss@npm:8.5.3"
+"postcss@npm:8.5.18":
+  version: 8.5.18
+  resolution: "postcss@npm:8.5.18"
   dependencies:
-    nanoid: ^3.3.8
+    nanoid: ^3.3.12
     picocolors: ^1.1.1
     source-map-js: ^1.2.1
-  checksum: da574620eb84ff60e65e1d8fc6bd5ad87a19101a23d0aba113c653434161543918229a0f673d89efb3b6d4906287eb04b957310dbcf4cbebacad9d1312711461
+  checksum: 924b71b066ada1909b741970b53529b95a6589106302a154cd14b2fae0c8186144be2bb1e0c45e0f3e530474cf92afa01d790afa8b71dcd60c98ca8ee42f66c1
   languageName: node
   linkType: hard
 
