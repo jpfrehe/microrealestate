@@ -1,0 +1,33 @@
+###############################################################################
+# Overlay, das die Service-Images auf einen anderen Registry-Namespace umbiegt.
+#
+# Die Compose-Dateien im Repo-Root zeigen fest auf den Upstream-Namespace
+# ghcr.io/microrealestate/microrealestate. Dieses Overlay wird von
+# deployment/deploy.sh zusätzlich geladen, damit der Server die Images zieht,
+# die aus diesem Fork gebaut wurden:
+#
+#   MRE_IMAGE_NAMESPACE=ghcr.io/jpfrehe/microrealestate \
+#   MRE_VERSION=v1.4.0 \
+#   docker compose -f docker-compose.yml -f deployment/docker-compose.images.yml up -d
+#
+# Ohne gesetztes MRE_IMAGE_NAMESPACE bleibt das Verhalten unverändert.
+###############################################################################
+services:
+  gateway:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/gateway:${MRE_VERSION:-latest}'
+  authenticator:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/authenticator:${MRE_VERSION:-latest}'
+  api:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/api:${MRE_VERSION:-latest}'
+  tenantapi:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/tenantapi:${MRE_VERSION:-latest}'
+  banking:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/banking:${MRE_VERSION:-latest}'
+  pdfgenerator:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/pdfgenerator:${MRE_VERSION:-latest}'
+  emailer:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/emailer:${MRE_VERSION:-latest}'
+  landlord-frontend:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/landlord-frontend:${MRE_VERSION:-latest}'
+  tenant-frontend:
+    image: '${MRE_IMAGE_NAMESPACE:-ghcr.io/microrealestate/microrealestate}/tenant-frontend:${MRE_VERSION:-latest}'

@@ -94,9 +94,15 @@ jobs:
           tags: '${{ matrix.image }}:${{ github.sha }}'
           labels: ${{ steps.meta.outputs.labels }}
 
+  # The following jobs deploy the freshly built images to a dedicated CI host and
+  # run the Cypress suite against it. They need the HOST/USERNAME/KEY secrets of
+  # that host and are therefore skipped unless the repository variable
+  # CI_DEPLOY_ENABLED is set to 'true' (Settings -> Variables -> Actions).
+  # Deploying to a production server happens in deploy.yml, not here.
   deploy:
     runs-on: ubuntu-latest
     needs: build-push-images
+    if: vars.CI_DEPLOY_ENABLED == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -131,7 +137,7 @@ jobs:
             cd microrealestate_ci
             docker stop $(docker ps -qf "network=microrealestate_ci_net")
             docker rm $(docker ps -qf "network=microrealestate_ci_net") 
-            docker rmi $(docker images --filter=reference="ghcr.io/microrealestate/microrealestate/*:${{ github.sha }}" -q)
+            docker rmi $(docker images --filter=reference="ghcr.io/${{ github.repository }}/*:${{ github.sha }}" -q)
             docker system prune -f
             MRE_VERSION=${{ github.sha }} ./mre ci
 
