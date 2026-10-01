@@ -2520,7 +2520,7 @@ __metadata:
     jsonwebtoken: 9.0.0
     locale: 0.1.0
     moment: 2.29.4
-    nodemailer: 9.0.1
+    nodemailer: 10.0.9
     nodemailer-mailgun-transport: 2.1.5
     nodemon: 3.1.4
     npm-run-all: 4.1.5
@@ -13921,10 +13921,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nodemailer@npm:9.0.1":
-  version: 9.0.1
-  resolution: "nodemailer@npm:9.0.1"
-  checksum: 7b8544b855b37e868f0cd596eb2afe5a9d0a54411c3c6db248c42d3f1a493cbe7e27d44ce10ad1720883175a4ad07339faffa596eab24b7ced7ef01fd63e7315
+"nodemailer@npm:10.0.9":
+  version: 10.0.9
+  resolution: "nodemailer@npm:10.0.9"
+  checksum: f24b24715c2c5ea60b9e6e52c4319df993afffc0236ca08329477de11221a38d6a120a75e6d9b1b364fe8650aa8f711e259dfad755ae5584bbbeb6fc190041ec
   languageName: node
   linkType: hard
 
