@@ -2347,7 +2347,7 @@ __metadata:
     json2csv: 5.0.6
     jsonwebtoken: 9.0.0
     lodash: 4.17.21
-    moment: 2.29.4
+    moment: 2.31.0
     mongobackup: 0.3.5
     nanoid: 5.1.0
     nodemon: 3.1.4
@@ -2395,7 +2395,7 @@ __metadata:
     eslint-plugin-import: 2.29.1
     express-rate-limit: 7.4.1
     jest: 29.7.0
-    moment: 2.29.4
+    moment: 2.31.0
     npm-run-all: 4.1.5
     rimraf: 6.0.1
     ts-jest: 29.2.5
@@ -2419,7 +2419,7 @@ __metadata:
     inquirer: 8.2.4
     jest: 29.7.0
     minimist: 1.2.6
-    moment: 2.29.4
+    moment: 2.31.0
     which: 4.0.0
   bin:
     cli: src/index.js
@@ -2477,7 +2477,7 @@ __metadata:
     eslint-plugin-react: 7.33.2
     eslint-plugin-react-hooks: 4.6.0
     formik: 2.2.9
-    moment: 2.29.4
+    moment: 2.31.0
     next: 15.5.18
     next-translate: 3.2.0
     next-translate-plugin: 3.2.0
@@ -2500,7 +2500,7 @@ __metadata:
     eslint-plugin-cypress: 2.15.1
     eslint-plugin-import: 2.29.1
     i18next: 21.8.14
-    moment: 2.29.4
+    moment: 2.31.0
   languageName: unknown
   linkType: soft
 
@@ -2519,7 +2519,7 @@ __metadata:
     i18n: 0.14.2
     jsonwebtoken: 9.0.0
     locale: 0.1.0
-    moment: 2.29.4
+    moment: 2.31.0
     nodemailer: 9.0.1
     nodemailer-mailgun-transport: 2.1.5
     nodemon: 3.1.4
@@ -2613,7 +2613,7 @@ __metadata:
     material-ui-formik-components: 0.7.3
     mobx: 6.12.3
     mobx-react-lite: 3.4.3
-    moment: 2.29.4
+    moment: 2.31.0
     nanoid: 5.1.0
     next: 15.5.18
     next-themes: 0.3.0
@@ -2658,7 +2658,7 @@ __metadata:
     i18n: 0.14.2
     jsonwebtoken: 9.0.0
     locale: 0.1.0
-    moment: 2.29.4
+    moment: 2.31.0
     multer: 2.2.0
     nodemon: 3.1.4
     npm-run-all: 4.1.5
@@ -2755,7 +2755,7 @@ __metadata:
     eslint: 8.57.0
     eslint-config-prettier: 9.1.0
     eslint-plugin-import: 2.29.1
-    moment: 2.29.4
+    moment: 2.31.0
     npm-run-all: 4.1.5
     rimraf: 6.0.1
     tsx: 3.14.0
@@ -13492,17 +13492,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"moment@npm:2.29.4":
-  version: 2.29.4
-  resolution: "moment@npm:2.29.4"
-  checksum: 0ec3f9c2bcba38dc2451b1daed5daded747f17610b92427bebe1d08d48d8b7bdd8d9197500b072d14e326dd0ccf3e326b9e3d07c5895d3d49e39b6803b76e80e
-  languageName: node
-  linkType: hard
-
 "moment@npm:2.30.1":
   version: 2.30.1
   resolution: "moment@npm:2.30.1"
   checksum: 859236bab1e88c3e5802afcf797fc801acdbd0ee509d34ea3df6eea21eb6bcc2abd4ae4e4e64aa7c986aa6cba563c6e62806218e6412a765010712e5fa121ba6
+  languageName: node
+  linkType: hard
+
+"moment@npm:2.31.0":
+  version: 2.31.0
+  resolution: "moment@npm:2.31.0"
+  checksum: e29cff3850438c66228cc43373ea8b6c480c7c3cfaf17ef9327653811d194734e7e2c1108b5cf2527ab0b2ba8907cbcb4f5dc3e764c044d5766eb7c4582759eb
   languageName: node
   linkType: hard
 
