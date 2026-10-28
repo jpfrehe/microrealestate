@@ -2349,7 +2349,7 @@ __metadata:
     lodash: 4.17.21
     moment: 2.29.4
     mongobackup: 0.3.5
-    nanoid: 5.1.0
+    nanoid: 3.3.18
     nodemon: 3.1.4
     npm-run-all: 4.1.5
     rimraf: 6.0.1
@@ -2372,7 +2372,7 @@ __metadata:
     eslint-plugin-import: 2.29.1
     jsonwebtoken: 9.0.0
     locale: 0.1.0
-    nanoid: 5.1.0
+    nanoid: 3.3.18
     nodemon: 3.1.4
     npm-run-all: 4.1.5
     rimraf: 6.0.1
@@ -2614,7 +2614,7 @@ __metadata:
     mobx: 6.12.3
     mobx-react-lite: 3.4.3
     moment: 2.29.4
-    nanoid: 5.1.0
+    nanoid: 3.3.18
     next: 15.5.18
     next-themes: 0.3.0
     next-translate: 3.2.0
@@ -13648,12 +13648,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"nanoid@npm:3.3.8":
-  version: 3.3.8
-  resolution: "nanoid@npm:3.3.8"
+"nanoid@npm:3.3.18":
+  version: 3.3.18
+  resolution: "nanoid@npm:3.3.18"
   bin:
     nanoid: bin/nanoid.cjs
-  checksum: dfe0adbc0c77e9655b550c333075f51bb28cfc7568afbf3237249904f9c86c9aaaed1f113f0fddddba75673ee31c758c30c43d4414f014a52a7a626efc5958c9
+  checksum: db804317d337b41602666f23014e399d1263033d13a903955c246378256fd4e002519e87199ca40b19aff52274965ac7cc6e70c13a63e194e15c4664724602d3
   languageName: node
   linkType: hard
 
