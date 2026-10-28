@@ -2579,7 +2579,7 @@ __metadata:
     "@react-pdf-viewer/full-screen": 3.12.0
     "@react-pdf-viewer/print": 3.12.0
     "@tanstack/react-query": 5.29.0
-    "@tiptap/core": 2.6.6
+    "@tiptap/core": 3.30.4
     "@tiptap/extension-placeholder": 2.6.6
     "@tiptap/extension-superscript": 2.6.6
     "@tiptap/extension-table": 2.6.6
@@ -5449,12 +5449,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@tiptap/core@npm:2.6.6":
-  version: 2.6.6
-  resolution: "@tiptap/core@npm:2.6.6"
+"@tiptap/core@npm:3.30.4":
+  version: 3.30.4
+  resolution: "@tiptap/core@npm:3.30.4"
   peerDependencies:
-    "@tiptap/pm": ^2.6.6
-  checksum: 39a7ea6734dd907580b004d311a5026723c0ca52921f0a8aafcc2d4652f288e15a350e41b69b0620557390142fc07a7655918109c6334d5a740e111e86ebb306
+    "@tiptap/pm": 3.30.4
+  checksum: e5e658d0a4e091fe38a377aa48ea3c4b63640d4167b2778e515e64aed608b2a18e1d4932cbdbd68bc0bc5ac6c74c6d7f8d19d2b9d3929240ce5a9d5e2435b188
   languageName: node
   linkType: hard
 
