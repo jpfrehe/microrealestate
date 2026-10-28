@@ -27,7 +27,7 @@
     "clear": "0.1.0",
     "dotenv": "16.0.1",
     "dotenv-expand": "8.0.3",
-    "figlet": "1.5.2",
+    "figlet": "1.11.3",
     "inquirer": "8.2.4",
     "minimist": "1.2.6",
     "moment": "2.31.0",
